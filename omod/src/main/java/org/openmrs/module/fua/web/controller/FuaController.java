@@ -47,6 +47,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import liquibase.pro.packaged.f;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;   // ← la excepción
 import org.apache.commons.lang3.StringUtils;
@@ -129,6 +132,7 @@ public class FuaController {
 		return ResponseEntity.ok(fua);
 	}
 
+	/*
 	@RequestMapping(
 			value    = "/visitInfo/{visitUuid}/generator/{identifierFormat}",
 			method   = RequestMethod.POST,
@@ -139,14 +143,14 @@ public class FuaController {
 			@PathVariable String identifierFormat) {
 
 		try {
-			/* 1. Buscamos el FUA ------------------------------------------------ */
+			// 1. Buscamos el FUA ------------------------------------------------ 
 			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
 			if (fua == null) {
 				return ResponseEntity.status(HttpStatus.NOT_FOUND)
 						.body("FUA no encontrado para visitUuid: " + visitUuid);
 			}
 
-			/* 2. Pasamos payload de String → JSON ------------------------------ */
+			// 2. Pasamos payload de String → JSON ------------------------------
 			ObjectMapper mapper  = new ObjectMapper();
 			JsonNode payloadJson;
 			try {
@@ -159,26 +163,11 @@ public class FuaController {
 				payloadJson = mapper.getNodeFactory().textNode(fua.getPayload());
 			}
 
-			/* 3. Construimos el body para el microservicio --------------------- */
+			// 3. Construimos el body para el microservicio ---------------------
 			Map<String, Object> requestBody = new HashMap<>();
 			requestBody.put("payload", payloadJson);
 			
-			/* 4. Llamamos al microservicio ------------------------------------- */
-			/*
-			String remoteUrl = "http://fua-generator:3000/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-			*/
-			/*
-			String remoteUrl = "http://hii1sc-qlty.inf.pucp.edu.pe/services/fua-generator/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-			*/
-			
-			/* String remoteUrl = "http://localhost:3000/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-			*/
+			// 4. Llamamos al microservicio -------------------------------------
 
 			String baseUrl = getFuaGeneratorBaseUrl();
 			String remoteUrl = baseUrl + "/ws/FUAFormat/"
@@ -194,9 +183,9 @@ public class FuaController {
 					new HttpComponentsClientHttpRequestFactory()); // permite body en GET
 
 			ResponseEntity<String> remoteResp = restTemplate.exchange(
-					remoteUrl, HttpMethod.GET, entity, String.class);
+					remoteUrl, HttpMethod.POST, entity, String.class);
 
-			/* 5. Devolvemos el HTML recibido ----------------------------------- */
+			// 5. Devolvemos el HTML recibido ----------------------------------- 
 			return ResponseEntity.status(remoteResp.getStatusCode())
 					.contentType(MediaType.TEXT_HTML)
 					.body(remoteResp.getBody());
@@ -206,204 +195,64 @@ public class FuaController {
 					.body("Error procesando la solicitud: " + ex.getMessage());
 		}
 	}
+	*/
 
 	@RequestMapping(
-			value    = "/visitInfo/{visitUuid}/generator1/{identifierFormat}",
+			value    = "/visitInfo/{visitUuid}/generator/{identifierFormat}",
 			method   = RequestMethod.POST,
-			produces = "text/html")       // devolvemos HTML
+			produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<?> renderVisitInfo1(
+	public ResponseEntity<?> renderVisitInfo(
 			@PathVariable String visitUuid,
 			@PathVariable String identifierFormat) {
 
-		Log log = LogFactory.getLog(getClass());
-
 		try {
-			log.info("=== Iniciando renderVisitInfo1 ===");
-			log.info("visitUuid: " + visitUuid + ", identifierFormat: " + identifierFormat);
-
 			/* 1. Buscamos el FUA ------------------------------------------------ */
 			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
 			if (fua == null) {
-				log.warn("FUA no encontrado para visitUuid: " + visitUuid);
 				return ResponseEntity.status(HttpStatus.NOT_FOUND)
 						.body("FUA no encontrado para visitUuid: " + visitUuid);
 			}
-			log.info("FUA encontrado con ID: " + fua.getId());
-			if (fua.getPayload() != null) {
-				log.debug("Payload length: " + fua.getPayload().length());
-			}
 
-			/* 2. Pasamos payload de String → JSON ------------------------------ */
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode payloadJson;
-			try {
-				if (StringUtils.isBlank(fua.getPayload())) {
-					log.debug("Payload vacío o nulo, se crea JSON vacío.");
-					payloadJson = mapper.createObjectNode();
-				} else {
-					log.debug("Convirtiendo payload de String a JSON...");
-					payloadJson = mapper.readTree(fua.getPayload());
-				}
-			} catch (JsonProcessingException ex) {
-				log.warn("Payload no es JSON válido, se tratará como texto plano. Error: " + ex.getMessage());
-				payloadJson = mapper.getNodeFactory().textNode(fua.getPayload());
-			}
-
-			/* 3. Construimos el body para el microservicio --------------------- */
+			/* 2. Construimos el body para el microservicio --------------------- */
 			Map<String, Object> requestBody = new HashMap<>();
-			requestBody.put("payload", payloadJson);
-			log.debug("Body construido para microservicio: " + requestBody.toString());
 
-			/* 4. Llamamos al microservicio ------------------------------------- */
-			/*
-			String remoteUrl = "http://localhost:3000/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-			*/
+			requestBody.put("payload", 
+					StringUtils.isBlank(fua.getPayload()) 
+						? null 
+						: new ObjectMapper().readTree(fua.getPayload()));
 
+			requestBody.put("schemaType", "xd");
+			requestBody.put("outputType", "xd");
+			requestBody.put("createdBy", "Fua-user");
+			requestBody.put("FUAFormatFromSchemaId", identifierFormat);
+
+			/* 3. Construimos la nueva URL -------------------------------------- */
 			String baseUrl = getFuaGeneratorBaseUrl();
-			String remoteUrl = baseUrl + "/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
+			String remoteUrl = baseUrl + "/ws/FUAFromVisit";
 
-			log.info("URL del microservicio: " + remoteUrl);
-
+			/* 4. Headers -------------------------------------------------------- */
 			HttpHeaders headers = new HttpHeaders();
-			//headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setContentType(MediaType.APPLICATION_JSON);
 			headers.set("fuagentoken", "fuagenerator");
-			log.debug("Cabeceras configuradas: " + headers.toString());
 
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-			log.debug("HttpEntity creado. Body y Headers preparados.");
 
-			RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
+			RestTemplate restTemplate = new RestTemplate();
 
-			log.info("Realizando solicitud GET al microservicio...");
+			/* 5. Llamada POST al microservicio --------------------------------- */
 			ResponseEntity<String> remoteResp = restTemplate.exchange(
-					remoteUrl, HttpMethod.GET, entity, String.class);
+					remoteUrl,
+					HttpMethod.POST,
+					entity,
+					String.class);
 
-			log.info("Respuesta recibida del microservicio. Código: " + remoteResp.getStatusCodeValue());
-			if (remoteResp.getBody() != null) {
-				log.debug("Cuerpo de respuesta (primeros 200 caracteres): " +
-						remoteResp.getBody().substring(0, Math.min(200, remoteResp.getBody().length())));
-			} else {
-				log.debug("Cuerpo de respuesta vacío o nulo.");
-			}
-
-			/* 5. Devolvemos el HTML recibido ----------------------------------- */
-			log.info("Devolviendo respuesta al cliente.");
+			/* 6. Devolvemos el JSON recibido ----------------------------------- */
 			return ResponseEntity.status(remoteResp.getStatusCode())
-					.contentType(MediaType.TEXT_HTML)
+					.contentType(MediaType.APPLICATION_JSON)
 					.body(remoteResp.getBody());
 
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			log.error("Error HTTP al llamar al microservicio: " + ex.getStatusCode() + " - " + ex.getResponseBodyAsString(), ex);
-			return ResponseEntity.status(ex.getStatusCode())
-					.body("Error HTTP del microservicio: " + ex.getResponseBodyAsString());
 		} catch (Exception ex) {
-			log.error("Error procesando la solicitud en renderVisitInfo1: " + ex.getMessage(), ex);
-			return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-					.body("Error procesando la solicitud: " + ex.getMessage());
-		}
-	}
-
-	@RequestMapping(
-			value    = "/visitInfo/{visitUuid}/generator2/{identifierFormat}",
-			method   = RequestMethod.POST,
-			produces = "text/html")       // devolvemos HTML
-	@ResponseBody
-	public ResponseEntity<?> renderVisitInfo2(
-			@PathVariable String visitUuid,
-			@PathVariable String identifierFormat) {
-
-		Log log = LogFactory.getLog(getClass());
-
-		try {
-			log.info("=== Iniciando renderVisitInfo2 ===");
-			log.info("visitUuid: " + visitUuid + ", identifierFormat: " + identifierFormat);
-
-			/* 1. Buscamos el FUA ------------------------------------------------ */
-			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
-			if (fua == null) {
-				log.warn("FUA no encontrado para visitUuid: " + visitUuid);
-				return ResponseEntity.status(HttpStatus.NOT_FOUND)
-						.body("FUA no encontrado para visitUuid: " + visitUuid);
-			}
-			log.info("FUA encontrado con ID: " + fua.getId());
-			if (fua.getPayload() != null) {
-				log.debug("Payload length: " + fua.getPayload().length());
-			}
-
-			/* 2. Pasamos payload de String → JSON ------------------------------ */
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode payloadJson;
-			try {
-				if (StringUtils.isBlank(fua.getPayload())) {
-					log.debug("Payload vacío o nulo, se crea JSON vacío.");
-					payloadJson = mapper.createObjectNode();
-				} else {
-					log.debug("Convirtiendo payload de String a JSON...");
-					payloadJson = mapper.readTree(fua.getPayload());
-				}
-			} catch (JsonProcessingException ex) {
-				log.warn("Payload no es JSON válido, se tratará como texto plano. Error: " + ex.getMessage());
-				payloadJson = mapper.getNodeFactory().textNode(fua.getPayload());
-			}
-
-			/* 3. Construimos el body para el microservicio --------------------- */
-			Map<String, Object> requestBody = new HashMap<>();
-			requestBody.put("payload", payloadJson);
-			log.debug("Body construido para microservicio: " + requestBody.toString());
-
-			/* 4. Llamamos al microservicio ------------------------------------- */
-			/*
-			String remoteUrl = "http://localhost:3000/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-			*/
-
-			String baseUrl = getFuaGeneratorBaseUrl();
-			String remoteUrl = baseUrl + "/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-
-			log.info("URL del microservicio: " + remoteUrl);
-
-			HttpHeaders headers = new HttpHeaders();
-			//headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set("fuagentoken", "fuag");
-			log.debug("Cabeceras configuradas: " + headers.toString());
-
-			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-			log.debug("HttpEntity creado. Body y Headers preparados.");
-
-			RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
-
-			log.info("Realizando solicitud GET al microservicio...");
-			ResponseEntity<String> remoteResp = restTemplate.exchange(
-					remoteUrl, HttpMethod.GET, entity, String.class);
-
-			log.info("Respuesta recibida del microservicio. Código: " + remoteResp.getStatusCodeValue());
-			if (remoteResp.getBody() != null) {
-				log.debug("Cuerpo de respuesta (primeros 200 caracteres): " +
-						remoteResp.getBody().substring(0, Math.min(200, remoteResp.getBody().length())));
-			} else {
-				log.debug("Cuerpo de respuesta vacío o nulo.");
-			}
-
-			/* 5. Devolvemos el HTML recibido ----------------------------------- */
-			log.info("Devolviendo respuesta al cliente.");
-			return ResponseEntity.status(remoteResp.getStatusCode())
-					.contentType(MediaType.TEXT_HTML)
-					.body(remoteResp.getBody());
-
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			log.error("Error HTTP al llamar al microservicio: " + ex.getStatusCode() + " - " + ex.getResponseBodyAsString(), ex);
-			return ResponseEntity.status(ex.getStatusCode())
-					.body("Error HTTP del microservicio: " + ex.getResponseBodyAsString());
-		} catch (Exception ex) {
-			log.error("Error procesando la solicitud en renderVisitInfo1: " + ex.getMessage(), ex);
 			return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
 					.body("Error procesando la solicitud: " + ex.getMessage());
 		}
@@ -525,6 +374,7 @@ public class FuaController {
 				fua.setVisitUuid(visitUuid);
 				fua.setPayload(payload);
 				fua.setFuaEstado(estadoPendiente);
+				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
 				System.out.println("///////////////EL FUA ES NULL///////////////////////////////////////////////: " + fua);
 				System.out.println("	EL FUA ES NUEVO:");
 				System.out.println("	UUID: " + fua.getUuid());
@@ -534,6 +384,7 @@ public class FuaController {
 			else{
 				fuaVersionService.saveFuaVersion(fua, "GenerateFromVisit");
 				fua.setPayload(payload);
+				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
 				System.out.println("///////////////EL FUA NO ES NULL///////////////////////////////////////////////: " + fua);
 			}
 			
@@ -565,6 +416,8 @@ public class FuaController {
 			        .body("Error al generar el FUA: " + e.getMessage());
 		}
 	}
+
+
 
 	@RequestMapping(value = "/estado/update/{fuaId}", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
 	@ResponseBody
@@ -624,4 +477,154 @@ public class FuaController {
 		
 		return url;
 	}
+
+	@RequestMapping(
+			value = "/RenderFUA/{visitUuid}",
+			method = RequestMethod.POST,
+			produces = MediaType.TEXT_HTML_VALUE
+	)
+	@ResponseBody
+	public ResponseEntity<String> renderFua(@PathVariable String visitUuid) {
+
+		try {
+
+			log.info("Renderizando FUA para visita UUID: " + visitUuid);
+
+			// 1️⃣ Buscar FUA en BD
+			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
+			log.info("FUA encontrado con uuid: " + fua.getUuid());
+			
+			if (fua == null) {
+				return ResponseEntity
+						.status(HttpStatus.NOT_FOUND)
+						.body("<h2>No existe FUA para esta visita</h2>");
+			}
+
+			if (StringUtils.isBlank(fua.getFuaGeneratorUuid())) {
+				return ResponseEntity
+						.status(HttpStatus.BAD_REQUEST)
+						.body("<h2>El FUA no tiene UUID del generador</h2>");
+			}
+
+			// 2️⃣ Construir URL remota
+			String baseUrl = getFuaGeneratorBaseUrl();
+			String remoteUrl = baseUrl
+					+ "/ws/FUAFromVisit/"
+					+ fua.getFuaGeneratorUuid()
+					+ "/render";
+
+			log.info("Llamando a microservicio: " + remoteUrl);
+
+			// 3️⃣ Headers
+			HttpHeaders headers = new HttpHeaders();
+			headers.set("fuagentoken", "fuagenerator");
+
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+
+			RestTemplate restTemplate = new RestTemplate();
+
+			// 4️⃣ Llamada GET
+			ResponseEntity<String> response = restTemplate.exchange(
+					remoteUrl,
+					HttpMethod.POST,
+					entity,
+					String.class
+			);
+
+			if (!response.getStatusCode().is2xxSuccessful()) {
+				return ResponseEntity
+						.status(response.getStatusCode())
+						.body("<h2>Error renderizando FUA</h2>");
+			}
+
+			// 5️⃣ Devolver HTML directamente
+			return ResponseEntity
+					.ok()
+					.contentType(MediaType.TEXT_HTML)
+					.body(response.getBody());
+
+		} catch (Exception e) {
+
+			log.error("Error renderizando FUA", e);
+
+			return ResponseEntity
+					.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("<h2>Error interno renderizando FUA</h2><pre>"
+							+ e.getMessage()
+							+ "</pre>");
+		}
+	}
+
+	private String getFuaIdentifierBase() {
+
+		String url = Context.getAdministrationService()
+				.getGlobalProperty(FuaConfig.FUA_GENERATOR_IDENTIFIER);		
+		return url;
+	}
+
+	private String generarFuadeFuaGenerator(Fua fua) {
+
+		try {
+			/* 1. Variables -------------------------------------------------- */
+			String baseUrl = getFuaGeneratorBaseUrl();
+			String remoteUrl = baseUrl + "/ws/FUAFromVisit";
+			String identifierFormat= getFuaIdentifierBase();
+			System.out.println("################################################################");
+			System.out.println("IdentifierFormat: " + identifierFormat);
+			System.out.println("################################################################");
+			
+			/* 2. Construimos el body ---------------------------------------- */
+			ObjectMapper mapper = new ObjectMapper();
+
+			Map<String, Object> requestBody = new HashMap<>();
+			requestBody.put("payload",
+					StringUtils.isBlank(fua.getPayload())
+							? null
+							: mapper.readTree(fua.getPayload()));
+
+			requestBody.put("schemaType", "xd");
+			requestBody.put("outputType", "xd");
+			requestBody.put("createdBy", "Fua-user");
+			requestBody.put("FUAFormatFromSchemaId", identifierFormat);
+
+			
+
+			/* 3. Headers ------------------------------------------------------ */
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.set("fuagentoken", "fuagenerator");
+
+			HttpEntity<Map<String, Object>> entity =
+					new HttpEntity<>(requestBody, headers);
+
+			RestTemplate restTemplate = new RestTemplate();
+
+			/* 4. Llamada POST ------------------------------------------------- */
+			ResponseEntity<String> response = restTemplate.exchange(
+					remoteUrl,
+					HttpMethod.POST,
+					entity,
+					String.class);
+
+			if (!response.getStatusCode().is2xxSuccessful()) {
+				throw new RuntimeException(
+						"Error microservicio: " + response.getStatusCode());
+			}
+
+			JsonNode root = mapper.readTree(response.getBody());
+
+			if (!root.has("uuid")) {
+				throw new RuntimeException("El microservicio no devolvió uuid");
+			}
+
+			return root.get("uuid").asText();
+
+		} catch (Exception e) {
+			e.printStackTrace(); // ← importante
+			throw new RuntimeException(
+				"Error generando FUA desde el generador externo: " + e.getMessage(), e);
+		}
+	}
+
 }
+

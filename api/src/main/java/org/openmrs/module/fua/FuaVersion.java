@@ -34,7 +34,10 @@ public class FuaVersion extends BaseOpenmrsObject implements Serializable {
 	@Lob
 	@Column(name = "payload")
 	private String payload;
-	
+
+	@Column(name = "fua_generator_uuid", length = 38)
+	private String fuaGeneratorUuid;
+
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "fua_estado_id", nullable = false)
 	private FuaEstado fuaEstado;
@@ -71,6 +74,7 @@ public class FuaVersion extends BaseOpenmrsObject implements Serializable {
 		this.fechaActualizacion = fua.getFechaActualizacion();
 		this.version = fua.getVersion();
 		this.activo = fua.getActivo();
+		this.fuaGeneratorUuid = fua.getFuaGeneratorUuid();
 	}
 	
 	// --- Getters y Setters ---
@@ -164,4 +168,13 @@ public class FuaVersion extends BaseOpenmrsObject implements Serializable {
 	public Boolean getActivo() {
 		return activo;
 	}
+
+	public String getFuaGeneratorUuid() {
+		return fuaGeneratorUuid;
+	}
+
+	public void setFuaGeneratorUuid(String fuaGeneratorUuid) {
+		this.fuaGeneratorUuid = fuaGeneratorUuid;
+	}
+
 }

@@ -70,13 +70,23 @@
 	<!-- Required Global Properties -->
 	<globalProperty>
 		<property>fua.generator.url</property>
-		<defaultValue>http://localhost:3000</defaultValue>
+		<defaultValue>http://fua-generator:3000</defaultValue>
 		<description>
 			Base URL of the FUA Generator microservice. This service is responsible for 
 			rendering FUA documents as HTML. Example: http://localhost:3000 or 
 			http://hii1sc-dev.inf.pucp.edu.pe/services/fua-generator
 		</description>
 	</globalProperty>
+	<globalProperty>
+		<property>fua.identifier</property>
+		<defaultValue></defaultValue>
+		<description>
+			Identifier used by the FUA module. This is a configurable string value
+			that can be set by the administrator and used when communicating with
+			external FUA-related services.
+		</description>
+	</globalProperty>
+
 	<!-- /Required Global Properties -->
 	
 	<!--

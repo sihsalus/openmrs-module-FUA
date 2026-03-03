@@ -213,5 +213,22 @@
         </sql>
     </changeSet>
 
+    <!-- Agregar columnas de fua-generator uuid a las tablas de fua y fuaversion -->
+    <changeSet id="add-fua-generator-uuid-2026-02-12-01" author="pedro">
+
+        <addColumn tableName="fua">
+            <column name="fua_generator_uuid" type="varchar(38)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="fua_version">
+            <column name="fua_generator_uuid" type="varchar(38)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+    </changeSet>
+
 
 </databaseChangeLog>

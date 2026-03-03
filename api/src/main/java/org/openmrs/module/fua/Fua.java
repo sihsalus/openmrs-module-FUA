@@ -28,6 +28,9 @@ public class Fua extends BaseOpenmrsObject implements Serializable {
 	@Column(name = "payload")
 	private String payload;
 	
+	@Column(name = "fua_generator_uuid", length = 38)
+	private String fuaGeneratorUuid;
+
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "fua_estado_id", nullable = false)
 	private FuaEstado fuaEstado;
@@ -123,5 +126,15 @@ public class Fua extends BaseOpenmrsObject implements Serializable {
 	public void setActivo(Boolean activo) {
 		this.activo = activo;
 	}
+
+	public String getFuaGeneratorUuid() {
+		return fuaGeneratorUuid;
+	}
+
+	public void setFuaGeneratorUuid(String fuaGeneratorUuid) {
+		this.fuaGeneratorUuid = fuaGeneratorUuid;
+	}
+
+
 	
 }
