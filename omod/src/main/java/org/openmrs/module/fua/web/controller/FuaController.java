@@ -262,6 +262,13 @@ public class FuaController {
 
 
 
+	@RequestMapping(value = "/patient/{patientUuid}", method = RequestMethod.GET, produces = "application/json")
+	@ResponseBody
+	public ResponseEntity<?> getFuasByPatientUuid(@PathVariable("patientUuid") String patientUuid) {
+		List<Fua> fuas = fuaService.getFuasByPatientUuid(patientUuid);
+		return ResponseEntity.ok(fuas);
+	}
+
 	@RequestMapping(value = "/id/{id}", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> getFuaById(@PathVariable("id") Integer id) {
