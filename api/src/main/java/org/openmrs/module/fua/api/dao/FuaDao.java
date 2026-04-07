@@ -94,6 +94,14 @@ public class FuaDao {
 		return query.getResultList();
 	}
 	
+	@SuppressWarnings("unchecked")
+	public List<Fua> getFuasByPatientUuid(String patientUuid) {
+		String hql = "SELECT f FROM Fua f, org.openmrs.Visit v "
+		        + "WHERE f.visitUuid = v.uuid AND v.patient.uuid = :patientUuid "
+		        + "ORDER BY f.fechaCreacion DESC";
+		return getSession().createQuery(hql).setParameter("patientUuid", patientUuid).list();
+	}
+
 	private Date toDate(LocalDate localDate) {
 		return localDate == null ? null : Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
 	}

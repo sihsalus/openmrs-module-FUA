@@ -76,5 +76,10 @@ public class FuaServiceImpl extends BaseOpenmrsService implements FuaService {
 		int offset = (page - 1) * size;
 		return dao.getFuasFiltrados(estado, inicio, fin, offset, size);
 	}
-	
+
+	@Override
+	public List<Fua> getFuasByPatientUuid(String patientUuid) throws APIException {
+		return dao.getFuasByPatientUuid(patientUuid);
+	}
+
 }
