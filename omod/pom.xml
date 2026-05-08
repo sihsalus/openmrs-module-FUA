@@ -5,7 +5,7 @@
   <parent>
 		<groupId>org.openmrs.module</groupId>
 		<artifactId>fua</artifactId>
-		<version>1.0.74</version>
+		<version>1.0.75</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
@@ -78,7 +78,7 @@
     <repository>
       <id>github</id>
       <name>GitHub FUA Module Packages</name>
-      <url>https://maven.pkg.github.com/PROYECTO-SANTACLOTILDE/openmrs-module-FUA</url>
+      <url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
     </repository>
   </distributionManagement>
 </project>

@@ -10,7 +10,7 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>fua</artifactId>
-	<version>1.0.74</version>
+	<version>1.0.75</version>
 	<packaging>pom</packaging>
 	<name>Fua</name>
 	<description>Manejo del Formato Único de Atención (FUA) for Peru's SIS (Seguro Integral de Salud) system.</description>
@@ -121,17 +121,17 @@
 	<distributionManagement>
 		<snapshotRepository>
 			<id>github</id>
-			<url>https://maven.pkg.github.com/PROYECTO-SANTACLOTILDE/openmrs-module-FUA</url>
+			<url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
 		</snapshotRepository>
 		<repository>
 			<id>github</id>
-			<url>https://maven.pkg.github.com/PROYECTO-SANTACLOTILDE/openmrs-module-FUA</url>
+			<url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
 		</repository>
 	</distributionManagement>
 
 
 	<properties>
-		<fua.base.version>1.0.74</fua.base.version>
+		<fua.base.version>1.0.75</fua.base.version>
         <openmrsPlatformVersion>2.4.2</openmrsPlatformVersion>
         <openMRSVersion>2.3.2</openMRSVersion>
         <openMRSMinorVersion>2.3</openMRSMinorVersion>
