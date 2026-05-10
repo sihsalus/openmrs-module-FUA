@@ -10,7 +10,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -26,11 +26,9 @@ jobs:
           server-username: module-bot
           server-password: MAVEN_TOKEN
 
-      # 1) Correr tests (si fallan, aquí se cae el job)
       - name: Run unit tests
         run: mvn -B -pl api clean test
-      
-      # 2) Subir el reporte Jacoco como artifact
+
       - name: Upload Jacoco coverage report
         if: success()
         uses: actions/upload-artifact@v4
@@ -38,10 +36,24 @@ jobs:
           name: api-jacoco-report
           path: api/target/site/jacoco
 
-      # 3) Solo si los tests pasan, hacemos deploy
       - name: Deploy to GitHub Packages
-        if: success()   
+        if: success()
         run: mvn -B deploy -DskipTests
         env:
           MAVEN_TOKEN: ${{ secrets.MODULE_TOKEN }}
 
+      - name: Publish to GitHub Releases
+        if: success()
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          OMOD_JAR=$(find omod/target -name "fua-omod-${VERSION}.jar" | grep -v sources | head -1)
+          API_JAR=$(find api/target  -name "fua-api-${VERSION}.jar"  | grep -v sources | head -1)
+          gh release delete "v${VERSION}" --yes 2>/dev/null || true
+          gh release create "v${VERSION}" \
+            --title "fua-omod v${VERSION}" \
+            --notes "Maven artifacts for fua v${VERSION} — public download, no authentication required." \
+            "$OMOD_JAR"  omod/pom.xml \
+            "$API_JAR"   api/pom.xml \
+            pom.xml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
