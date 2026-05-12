@@ -1,9 +1,16 @@
-${moduleName}
-==========================
+FUA OpenMRS Module
+==================
 
 Description
 -----------
-This is a very basic module which can be used as a starting point in creating a new module.
+This module supports Peru SIS Formato Unico de Atencion (FUA) workflows in OpenMRS.
+
+Maven Coordinates
+-----------------
+Published releases are available from Maven Central under:
+
+    io.github.proyecto-santaclotilde:fua-api
+    io.github.proyecto-santaclotilde:fua-omod
 
 Building from Source
 --------------------
