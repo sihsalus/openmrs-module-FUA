@@ -8,19 +8,36 @@
         <version>1.1.1</version>
     </parent>
 
-	<groupId>org.openmrs.module</groupId>
+	<groupId>io.github.proyecto-santaclotilde</groupId>
 	<artifactId>fua</artifactId>
 	<version>1.0.75</version>
 	<packaging>pom</packaging>
-	<name>Fua</name>
+	<name>FUA OpenMRS Module</name>
 	<description>Manejo del Formato Único de Atención (FUA) for Peru's SIS (Seguro Integral de Salud) system.</description>
 
-	<url>https://wiki.openmrs.org/x/FQ4z</url>
+	<url>https://github.com/sihsalus/openmrs-module-FUA</url>
+
+	<licenses>
+		<license>
+			<name>Mozilla Public License 2.0</name>
+			<url>https://www.mozilla.org/en-US/MPL/2.0/</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>sihsalus</id>
+			<name>SIHSALUS</name>
+			<organization>Proyecto Santa Clotilde</organization>
+			<organizationUrl>https://github.com/sihsalus</organizationUrl>
+		</developer>
+	</developers>
 
 	<scm>
-		<connection>scm:git:git@github.com:openmrs/openmrs-module-fua.git</connection>
-		<developerConnection>scm:git:git@github.com:openmrs/openmrs-module-fua.git</developerConnection>
-		<url>https://github.com/openmrs/openmrs-module-fua/</url>
+		<connection>scm:git:https://github.com/sihsalus/openmrs-module-FUA.git</connection>
+		<developerConnection>scm:git:https://github.com/sihsalus/openmrs-module-FUA.git</developerConnection>
+		<url>https://github.com/sihsalus/openmrs-module-FUA</url>
 	</scm>
 
 	<modules>
@@ -112,23 +129,64 @@
 				<artifactId>maven-deploy-plugin</artifactId>
 				<version>3.1.2</version>
 				<configuration>
-					<skip>true</skip>
+					<skip>false</skip>
 				</configuration>
 			</plugin>
 		</plugins>
 	</build>
 
-	<distributionManagement>
-		<snapshotRepository>
-			<id>github</id>
-			<url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
-		</snapshotRepository>
-		<repository>
-			<id>github</id>
-			<url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
-		</repository>
-	</distributionManagement>
-
+	<profiles>
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>3.6.3</version>
+						<configuration>
+							<doclint>none</doclint>
+							<failOnError>false</failOnError>
+							<source>8</source>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>3.2.7</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.10.0</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+							<autoPublish>true</autoPublish>
+							<waitUntil>validated</waitUntil>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<properties>
 		<fua.base.version>1.0.75</fua.base.version>

@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-		<groupId>org.openmrs.module</groupId>
+		<groupId>io.github.proyecto-santaclotilde</groupId>
 		<artifactId>fua</artifactId>
 		<version>1.0.75</version>
 		<relativePath>../pom.xml</relativePath>
@@ -21,7 +21,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.openmrs.module</groupId>
+      <groupId>io.github.proyecto-santaclotilde</groupId>
       <artifactId>fua-api</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
@@ -74,11 +74,4 @@
         </plugin>
     </plugins>
   </build>
-  <distributionManagement>
-    <repository>
-      <id>github</id>
-      <name>GitHub FUA Module Packages</name>
-      <url>https://maven.pkg.github.com/sihsalus/openmrs-module-FUA</url>
-    </repository>
-  </distributionManagement>
 </project>
