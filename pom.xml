@@ -10,7 +10,7 @@
 
 	<groupId>io.github.proyecto-santaclotilde</groupId>
 	<artifactId>fua</artifactId>
-	<version>1.0.76</version>
+	<version>1.0.77</version>
 	<packaging>pom</packaging>
 	<name>FUA OpenMRS Module</name>
 	<description>OpenMRS module for managing Peru SIS Formato Unico de Atencion (FUA) workflows.</description>
@@ -189,7 +189,7 @@
 	</profiles>
 
 	<properties>
-		<fua.base.version>1.0.76</fua.base.version>
+		<fua.base.version>1.0.77</fua.base.version>
         <openmrsPlatformVersion>2.4.2</openmrsPlatformVersion>
         <openMRSVersion>2.3.2</openMRSVersion>
         <openMRSMinorVersion>2.3</openMRSMinorVersion>
