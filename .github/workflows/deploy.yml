@@ -77,9 +77,18 @@ jobs:
         run: |
           sed -i "s/<fua.version>[^<]*<\/fua.version>/<fua.version>${{ steps.fua.outputs.version }}<\/fua.version>/" backend/pom.xml
 
+      # El distro (openmrs-core 2.8.x) se construye con Java 21; el settings
+      # template de credentials ya no existe en sihsalus/sihsalus.
+      - name: Set up JDK 21 for distro build
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: 21
+          cache: maven
+
       - name: Build backend with PR FUA
         working-directory: sihsalus
-        run: mvn -B -s backend/credentials/settings.xml.template -P backend -pl backend install
+        run: mvn -B -U -P backend install
 
   publish:
     runs-on: ubuntu-latest
