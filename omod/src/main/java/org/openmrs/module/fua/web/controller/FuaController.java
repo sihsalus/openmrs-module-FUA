@@ -343,7 +343,7 @@ public class FuaController {
 			
 			log.info("Generando FUA desde visita UUID: " + visitUuid);
 
-			String url = "http://localhost:8080/openmrs/ws/rest/v1/visit/" + visitUuid + "?v=full";
+			String url = "http://localhost:8080/openmrs/ws/rest/v1/visit/" + visitUuid + "?v=custom:(uuid,patient:(uuid,identifiers:(identifier,uuid,identifierType:(name,uuid)),person:(age,display,gender,uuid,attributes:(value,attributeType:(uuid,display)))),visitType:(uuid,name,display),location:(uuid,name,display),startDatetime,stopDatetime,encounters:(encounterDatetime,obs:(uuid,concept:(uuid,display),value)))";
 
 			// Autenticación segura desde runtime.properties
 			String username = "admin";//Context.getAdministrationService().getGlobalProperty("fua.rest.username");
