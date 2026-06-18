@@ -562,6 +562,79 @@ public class FuaController {
 		}
 	}
 
+	@RequestMapping(
+			value = "/generatePDF/{visitUuid}",
+			method = RequestMethod.POST,
+			produces = MediaType.APPLICATION_PDF_VALUE
+	)
+	@ResponseBody
+	public ResponseEntity<byte[]> generateFuaPdf(@PathVariable String visitUuid) {
+
+		try {
+
+			log.info("Generando PDF de FUA para visita UUID: " + visitUuid);
+
+			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
+			if (fua == null) {
+				return ResponseEntity
+						.status(HttpStatus.NOT_FOUND)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("No existe FUA para esta visita".getBytes(StandardCharsets.UTF_8));
+			}
+
+			if (StringUtils.isBlank(fua.getFuaGeneratorUuid())) {
+				return ResponseEntity
+						.status(HttpStatus.BAD_REQUEST)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("El FUA no tiene UUID del generador".getBytes(StandardCharsets.UTF_8));
+			}
+
+			String baseUrl = getFuaGeneratorBaseUrl();
+			String remoteUrl = baseUrl
+					+ "/ws/FUAFromvisit/"
+					+ UriUtils.encodePathSegment(fua.getFuaGeneratorUuid(), StandardCharsets.UTF_8)
+					+ "/generatePDF";
+
+			log.info("Llamando a microservicio para PDF: " + remoteUrl);
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.set("fuagentoken", "fuagenerator");
+
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+			RestTemplate restTemplate = new RestTemplate();
+
+			ResponseEntity<byte[]> response = restTemplate.exchange(
+					remoteUrl,
+					HttpMethod.POST,
+					entity,
+					byte[].class
+			);
+
+			if (!response.getStatusCode().is2xxSuccessful()) {
+				return ResponseEntity
+						.status(response.getStatusCode())
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("Error generando PDF de FUA".getBytes(StandardCharsets.UTF_8));
+			}
+
+			HttpHeaders responseHeaders = new HttpHeaders();
+			responseHeaders.setContentType(MediaType.APPLICATION_PDF);
+			responseHeaders.set("Content-Disposition", "inline; filename=\"FUA-" + visitUuid + ".pdf\"");
+
+			return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
+
+		} catch (Exception e) {
+
+			log.error("Error generando PDF de FUA", e);
+
+			return ResponseEntity
+					.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.contentType(MediaType.TEXT_PLAIN)
+					.body(("Error interno generando PDF de FUA: " + e.getMessage())
+							.getBytes(StandardCharsets.UTF_8));
+		}
+	}
+
 	private String getFuaIdentifierBase() {
 
 		String url = Context.getAdministrationService()
