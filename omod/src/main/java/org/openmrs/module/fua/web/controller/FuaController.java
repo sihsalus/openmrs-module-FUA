@@ -568,7 +568,7 @@ public class FuaController {
 			produces = MediaType.APPLICATION_PDF_VALUE
 	)
 	@ResponseBody
-	public ResponseEntity<byte[]> generateFuaPdf(@PathVariable String visitUuid) {
+	public ResponseEntity<byte[]> generateFuaPDF(@PathVariable String visitUuid) {
 
 		try {
 
@@ -591,7 +591,7 @@ public class FuaController {
 
 			String baseUrl = getFuaGeneratorBaseUrl();
 			String remoteUrl = baseUrl
-					+ "/ws/FUAFromvisit/"
+					+ "/ws/FUAFromVisit/"
 					+ UriUtils.encodePathSegment(fua.getFuaGeneratorUuid(), StandardCharsets.UTF_8)
 					+ "/generatePDF";
 
@@ -622,6 +622,15 @@ public class FuaController {
 			responseHeaders.set("Content-Disposition", "inline; filename=\"FUA-" + visitUuid + ".pdf\"");
 
 			return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
+
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+
+			log.error("Error HTTP generando PDF de FUA: " + ex.getStatusCode(), ex);
+
+			return ResponseEntity
+					.status(ex.getStatusCode())
+					.contentType(MediaType.TEXT_PLAIN)
+					.body(ex.getResponseBodyAsString().getBytes(StandardCharsets.UTF_8));
 
 		} catch (Exception e) {
 
