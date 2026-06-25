@@ -619,7 +619,8 @@ public class FuaController {
 
 			HttpHeaders responseHeaders = new HttpHeaders();
 			responseHeaders.setContentType(MediaType.APPLICATION_PDF);
-			responseHeaders.set("Content-Disposition", "inline; filename=\"FUA-" + visitUuid + ".pdf\"");
+			responseHeaders.setContentLength(response.getBody() != null ? response.getBody().length : 0);
+			responseHeaders.set("Content-Disposition", "attachment; filename=\"FUA-" + visitUuid + ".pdf\"");
 
 			return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
 
