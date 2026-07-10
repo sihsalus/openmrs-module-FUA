@@ -4,12 +4,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.context.UsernamePasswordCredentials;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaEstado;
@@ -45,7 +45,6 @@ import org.springframework.web.util.UriUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -339,26 +338,24 @@ public class FuaController {
 	// Nuevo endpoint
 	@RequestMapping(value = "/generateFromVisit/{visitUuid}", method = RequestMethod.POST, produces = "application/json")
 	@ResponseBody
-	public ResponseEntity<?> generateFuaFromVisit(@PathVariable String visitUuid, HttpServletRequest request) {
+	public ResponseEntity<?> generateFuaFromVisit(@PathVariable String visitUuid) {
 		try {
 			
 			log.info("Generando FUA desde visita UUID: " + visitUuid);
 
 			String url = "http://localhost:8080/openmrs/ws/rest/v1/visit/" + visitUuid + "?v=custom:(uuid,patient:(uuid,identifiers:(identifier,uuid,identifierType:(name,uuid)),person:(age,display,gender,uuid,attributes:(value,attributeType:(uuid,display)))),visitType:(uuid,name,display),location:(uuid,name,display),startDatetime,stopDatetime,encounters:(encounterDatetime,obs:(uuid,concept:(uuid,display),value)))";
 
-			if (!Context.isAuthenticated()) {
-				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para generar el FUA.");
-			}
+			// Autenticación segura desde runtime.properties
+			String username = "admin";//Context.getAdministrationService().getGlobalProperty("fua.rest.username");
+			String password = "Admin123";//Context.getAdministrationService().getGlobalProperty("fua.rest.password");
 
-			BasicCredentials basicCredentials = getBasicCredentials(request);
-			if (basicCredentials == null) {
-				log.warn("No se recibio Basic Auth valido para consultar el REST de OpenMRS.");
-				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-						.body("Debe enviar credenciales Basic Auth validas para consultar la visita.");
+			if (username == null || password == null) {
+				log.error("Credenciales de REST no configuradas.");
+				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Credenciales REST no configuradas.");
 			}
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.set("Authorization", buildBasicAuthorizationHeader(basicCredentials));
+			headers.setBasicAuth(username, password);
 			HttpEntity<String> entity = new HttpEntity<>(headers);
 
 			RestTemplate restTemplate = new RestTemplate();
@@ -424,52 +421,6 @@ public class FuaController {
 			log.error("Error inesperado al generar FUA desde visita: " + visitUuid, e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 			        .body("Error al generar el FUA: " + e.getMessage());
-		}
-	}
-
-	private BasicCredentials getBasicCredentials(HttpServletRequest request) {
-		String authorizationHeader = request.getHeader("Authorization");
-		if (StringUtils.isBlank(authorizationHeader) || !authorizationHeader.toLowerCase().startsWith("basic ")) {
-			return null;
-		}
-
-		try {
-			String encodedCredentials = authorizationHeader.substring("Basic ".length()).trim();
-			String decodedCredentials = new String(Base64.getDecoder().decode(encodedCredentials), StandardCharsets.UTF_8);
-			int separatorIndex = decodedCredentials.indexOf(':');
-
-			if (separatorIndex <= 0) {
-				return null;
-			}
-
-			String username = decodedCredentials.substring(0, separatorIndex);
-			String password = decodedCredentials.substring(separatorIndex + 1);
-
-			if (StringUtils.isBlank(username) || StringUtils.isBlank(password)) {
-				return null;
-			}
-
-			return new BasicCredentials(username, password);
-		}
-		catch (IllegalArgumentException ex) {
-			log.warn("No se pudo decodificar el header Basic Auth.", ex);
-			return null;
-		}
-	}
-
-	private String buildBasicAuthorizationHeader(BasicCredentials credentials) {
-		String usernamePassword = credentials.username + ":" + credentials.password;
-		String encodedCredentials = Base64.getEncoder().encodeToString(usernamePassword.getBytes(StandardCharsets.UTF_8));
-		return "Basic " + encodedCredentials;
-	}
-
-	private static class BasicCredentials {
-		private final String username;
-		private final String password;
-
-		private BasicCredentials(String username, String password) {
-			this.username = username;
-			this.password = password;
 		}
 	}
 
