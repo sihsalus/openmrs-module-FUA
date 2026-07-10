@@ -3,12 +3,13 @@ package org.openmrs.module.fua.web.controller;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
-import org.openmrs.api.context.UsernamePasswordCredentials;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.FuaEstado;
 import org.openmrs.module.fua.api.FuaEstadoService;
 import org.openmrs.web.WebConstants;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -72,14 +73,13 @@ public class FuaEstadoController {
 
     @RequestMapping(value = "/create", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
     @ResponseBody
-    public FuaEstado createEstado(@RequestBody FuaEstado nuevoEstado) {
+    public ResponseEntity<?> createEstado(@RequestBody FuaEstado nuevoEstado) {
         if (!Context.isAuthenticated()) {
-			UsernamePasswordCredentials credentials = new UsernamePasswordCredentials("admin", "Admin123");
-			Context.authenticate(credentials);
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para crear el estado.");
 		}
         log.info("Creando nuevo FuaEstado con nombre: " + nuevoEstado.getNombre());
 
-        return fuaEstadoService.saveEstado(nuevoEstado);
+        return ResponseEntity.ok(fuaEstadoService.saveEstado(nuevoEstado));
     }
 
 }
