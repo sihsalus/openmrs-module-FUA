@@ -4,12 +4,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
-import org.openmrs.api.context.UsernamePasswordCredentials;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaEstado;
@@ -338,24 +338,26 @@ public class FuaController {
 	// Nuevo endpoint
 	@RequestMapping(value = "/generateFromVisit/{visitUuid}", method = RequestMethod.POST, produces = "application/json")
 	@ResponseBody
-	public ResponseEntity<?> generateFuaFromVisit(@PathVariable String visitUuid) {
+	public ResponseEntity<?> generateFuaFromVisit(@PathVariable String visitUuid, HttpServletRequest request) {
 		try {
 			
 			log.info("Generando FUA desde visita UUID: " + visitUuid);
 
 			String url = "http://localhost:8080/openmrs/ws/rest/v1/visit/" + visitUuid + "?v=custom:(uuid,patient:(uuid,identifiers:(identifier,uuid,identifierType:(name,uuid)),person:(age,display,gender,uuid,attributes:(value,attributeType:(uuid,display)))),visitType:(uuid,name,display),location:(uuid,name,display),startDatetime,stopDatetime,encounters:(encounterDatetime,obs:(uuid,concept:(uuid,display),value)))";
 
-			// Autenticación segura desde runtime.properties
-			String username = "admin";//Context.getAdministrationService().getGlobalProperty("fua.rest.username");
-			String password = "Admin123";//Context.getAdministrationService().getGlobalProperty("fua.rest.password");
+			if (!Context.isAuthenticated()) {
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para generar el FUA.");
+			}
 
-			if (username == null || password == null) {
-				log.error("Credenciales de REST no configuradas.");
-				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Credenciales REST no configuradas.");
+			String authorizationHeader = request.getHeader("Authorization");
+			if (StringUtils.isBlank(authorizationHeader)) {
+				log.warn("No se recibio header Authorization para reenviar al REST de OpenMRS.");
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+						.body("Debe enviar credenciales en el header Authorization para consultar la visita.");
 			}
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.setBasicAuth(username, password);
+			headers.set("Authorization", authorizationHeader);
 			HttpEntity<String> entity = new HttpEntity<>(headers);
 
 			RestTemplate restTemplate = new RestTemplate();
@@ -431,8 +433,7 @@ public class FuaController {
 	public ResponseEntity<?> actualizarEstadoFua(@PathVariable Integer fuaId, @RequestBody Map<String, Object> body) {
 		try {
 			if (!Context.isAuthenticated()) {
-				UsernamePasswordCredentials credentials = new UsernamePasswordCredentials("admin", "Admin123");
-				Context.authenticate(credentials);
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para actualizar el estado del FUA.");
 			}
 
 			/*log.info("Cambiando estado del FUA ID: " + fuaId);
