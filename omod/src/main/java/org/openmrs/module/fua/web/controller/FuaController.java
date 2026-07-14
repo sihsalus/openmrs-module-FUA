@@ -1,15 +1,28 @@
 package org.openmrs.module.fua.web.controller;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.Encounter;
+import org.openmrs.Location;
+import org.openmrs.Obs;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.Person;
+import org.openmrs.PersonAttribute;
+import org.openmrs.Visit;
+import org.openmrs.VisitType;
 import org.openmrs.api.context.Context;
-import org.openmrs.api.context.UsernamePasswordCredentials;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaEstado;
@@ -48,13 +61,9 @@ import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import liquibase.pro.packaged.f;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;   // ← la excepción
 import org.apache.commons.lang3.StringUtils;
-
-import java.util.HashMap;
 
 @Controller
 @RequestMapping(value = "/module/fua")
@@ -343,30 +352,15 @@ public class FuaController {
 			
 			log.info("Generando FUA desde visita UUID: " + visitUuid);
 
-			String url = "http://localhost:8080/openmrs/ws/rest/v1/visit/" + visitUuid + "?v=custom:(uuid,patient:(uuid,identifiers:(identifier,uuid,identifierType:(name,uuid)),person:(age,display,gender,uuid,attributes:(value,attributeType:(uuid,display)))),visitType:(uuid,name,display),location:(uuid,name,display),startDatetime,stopDatetime,encounters:(encounterDatetime,obs:(uuid,concept:(uuid,display),value)))";
+			Visit visit = Context.getVisitService().getVisitByUuid(visitUuid);
 
 			// Autenticación segura desde runtime.properties
-			String username = "admin";//Context.getAdministrationService().getGlobalProperty("fua.rest.username");
-			String password = "Admin123";//Context.getAdministrationService().getGlobalProperty("fua.rest.password");
-
-			if (username == null || password == null) {
-				log.error("Credenciales de REST no configuradas.");
-				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Credenciales REST no configuradas.");
-			}
-
-			HttpHeaders headers = new HttpHeaders();
-			headers.setBasicAuth(username, password);
-			HttpEntity<String> entity = new HttpEntity<>(headers);
-
-			RestTemplate restTemplate = new RestTemplate();
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-
-			if (!response.getStatusCode().is2xxSuccessful()) {
+			if (visit == null) {
 				log.warn("No se pudo obtener la visita con UUID: " + visitUuid);
-				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No se pudo obtener la visita.");
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se pudo obtener la visita.");
 			}
 
-			String payload = response.getBody();
+			String payload = new ObjectMapper().writeValueAsString(buildVisitPayload(visit));
 
 			FuaEstado estadoPendiente = fuaEstadoService.getEstado(1);
 
@@ -424,6 +418,152 @@ public class FuaController {
 		}
 	}
 
+
+	private Map<String, Object> buildVisitPayload(Visit visit) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", visit.getUuid());
+		payload.put("patient", buildPatientPayload(visit.getPatient()));
+		payload.put("visitType", buildVisitTypePayload(visit.getVisitType()));
+		payload.put("location", buildLocationPayload(visit.getLocation()));
+		payload.put("startDatetime", formatDate(visit.getStartDatetime()));
+		payload.put("stopDatetime", formatDate(visit.getStopDatetime()));
+		payload.put("encounters", buildEncounterPayloads(visit));
+		return payload;
+	}
+
+	private Map<String, Object> buildPatientPayload(Patient patient) {
+		if (patient == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", patient.getUuid());
+
+		List<Map<String, Object>> identifiers = new ArrayList<>();
+		for (PatientIdentifier identifier : patient.getIdentifiers()) {
+			if (identifier == null || identifier.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> identifierPayload = new LinkedHashMap<>();
+			identifierPayload.put("identifier", identifier.getIdentifier());
+			identifierPayload.put("uuid", identifier.getUuid());
+
+			Map<String, Object> identifierTypePayload = new LinkedHashMap<>();
+			if (identifier.getIdentifierType() != null) {
+				identifierTypePayload.put("name", identifier.getIdentifierType().getName());
+				identifierTypePayload.put("uuid", identifier.getIdentifierType().getUuid());
+			}
+			identifierPayload.put("identifierType", identifierTypePayload);
+			identifiers.add(identifierPayload);
+		}
+		payload.put("identifiers", identifiers);
+		payload.put("person", buildPersonPayload(patient.getPerson()));
+		return payload;
+	}
+
+	private Map<String, Object> buildPersonPayload(Person person) {
+		if (person == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("age", person.getAge());
+		payload.put("display", person.getPersonName() != null ? person.getPersonName().getFullName() : person.getUuid());
+		payload.put("gender", person.getGender());
+		payload.put("uuid", person.getUuid());
+
+		List<Map<String, Object>> attributes = new ArrayList<>();
+		for (PersonAttribute attribute : person.getAttributes()) {
+			if (attribute == null || attribute.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> attributePayload = new LinkedHashMap<>();
+			attributePayload.put("value", attribute.getValue());
+
+			Map<String, Object> attributeTypePayload = new LinkedHashMap<>();
+			if (attribute.getAttributeType() != null) {
+				attributeTypePayload.put("uuid", attribute.getAttributeType().getUuid());
+				attributeTypePayload.put("display", attribute.getAttributeType().getName());
+			}
+			attributePayload.put("attributeType", attributeTypePayload);
+			attributes.add(attributePayload);
+		}
+		payload.put("attributes", attributes);
+		return payload;
+	}
+
+	private Map<String, Object> buildVisitTypePayload(VisitType visitType) {
+		if (visitType == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", visitType.getUuid());
+		payload.put("name", visitType.getName());
+		payload.put("display", visitType.getName());
+		return payload;
+	}
+
+	private Map<String, Object> buildLocationPayload(Location location) {
+		if (location == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", location.getUuid());
+		payload.put("name", location.getName());
+		payload.put("display", location.getDisplayString());
+		return payload;
+	}
+
+	private List<Map<String, Object>> buildEncounterPayloads(Visit visit) {
+		List<Map<String, Object>> encounters = new ArrayList<>();
+		for (Encounter encounter : visit.getEncounters()) {
+			if (encounter == null || encounter.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> encounterPayload = new LinkedHashMap<>();
+			encounterPayload.put("encounterDatetime", formatDate(encounter.getEncounterDatetime()));
+			encounterPayload.put("obs", buildObsPayloads(encounter));
+			encounters.add(encounterPayload);
+		}
+		return encounters;
+	}
+
+	private List<Map<String, Object>> buildObsPayloads(Encounter encounter) {
+		List<Map<String, Object>> observations = new ArrayList<>();
+		for (Obs obs : encounter.getObs()) {
+			if (obs == null || obs.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> obsPayload = new LinkedHashMap<>();
+			obsPayload.put("uuid", obs.getUuid());
+
+			Map<String, Object> conceptPayload = new LinkedHashMap<>();
+			if (obs.getConcept() != null) {
+				conceptPayload.put("uuid", obs.getConcept().getUuid());
+				conceptPayload.put("display", obs.getConcept().getDisplayString());
+			}
+			obsPayload.put("concept", conceptPayload);
+			obsPayload.put("value", obs.getValueAsString(Context.getLocale()));
+			observations.add(obsPayload);
+		}
+		return observations;
+	}
+
+	private String formatDate(Date date) {
+		if (date == null) {
+			return null;
+		}
+
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+		dateFormat.setTimeZone(TimeZone.getDefault());
+		return dateFormat.format(date);
+	}
 
 
 	@RequestMapping(value = "/estado/update/{fuaId}", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
