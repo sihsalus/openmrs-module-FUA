@@ -78,6 +78,20 @@
 		</description>
 	</globalProperty>
 	<globalProperty>
+		<property>fua.generator.headerName</property>
+		<defaultValue>fuagentoken</defaultValue>
+		<description>
+			HTTP header name used when communicating with the FUA Generator microservice.
+		</description>
+	</globalProperty>
+	<globalProperty>
+		<property>fua.generator.headerValue</property>
+		<defaultValue>fuagenerator</defaultValue>
+		<description>
+			HTTP header value used when communicating with the FUA Generator microservice.
+		</description>
+	</globalProperty>
+	<globalProperty>
 		<property>fua.identifier</property>
 		<defaultValue></defaultValue>
 		<description>

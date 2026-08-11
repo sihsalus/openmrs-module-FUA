@@ -42,7 +42,7 @@ public class FuaRedirectionController {
     ) throws IOException {
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("fuagentoken", "fuagenerator");
+        headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
@@ -73,7 +73,7 @@ public class FuaRedirectionController {
     @ResponseBody
     public ResponseEntity<String> redirectFuaFormatGetRequest() throws IOException {
         HttpHeaders headers = new HttpHeaders();
-        headers.set("fuagentoken", "fuagenerator");
+        headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
         HttpEntity<Void> requestEntity = new HttpEntity<Void>(headers);
 
@@ -118,7 +118,7 @@ public class FuaRedirectionController {
             log.info("Renderizando FUAFormat para id: " + id);
 
             HttpHeaders headers = new HttpHeaders();
-            headers.set("fuagentoken", "fuagenerator");
+            headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
             HttpEntity<Void> requestEntity = new HttpEntity<Void>(headers);
 
@@ -197,6 +197,32 @@ public class FuaRedirectionController {
 		}
 		
 		return url;
+	}
+
+	private String getFuaGeneratorHeaderName() {
+		String headerName = Context.getAdministrationService()
+				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_NAME_GP);
+		
+		if (org.apache.commons.lang3.StringUtils.isBlank(headerName)) {
+			headerName = FuaConfig.FUA_GENERATOR_HEADER_NAME_DEFAULT;
+			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_NAME_GP 
+					+ " not set, using default: " + headerName);
+		}
+		
+		return headerName;
+	}
+
+	private String getFuaGeneratorHeaderValue() {
+		String headerValue = Context.getAdministrationService()
+				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP);
+		
+		if (org.apache.commons.lang3.StringUtils.isBlank(headerValue)) {
+			headerValue = FuaConfig.FUA_GENERATOR_HEADER_VALUE_DEFAULT;
+			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP 
+					+ " not set, using default: " + headerValue);
+		}
+		
+		return headerValue;
 	}
 
 
