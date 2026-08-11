@@ -32,5 +32,13 @@ public class FuaConfig {
     
     public final static String FUA_GENERATOR_URL_DEFAULT = "http://localhost:3000";
 
+	public final static String FUA_GENERATOR_HEADER_NAME_GP = "fua.generator.headerName";
+	
+	public final static String FUA_GENERATOR_HEADER_NAME_DEFAULT = "fuagentoken";
+	
+	public final static String FUA_GENERATOR_HEADER_VALUE_GP = "fua.generator.headerValue";
+	
+	public final static String FUA_GENERATOR_HEADER_VALUE_DEFAULT = "fuagenerator";
+
 	public final static String FUA_GENERATOR_IDENTIFIER = "fua.identifier";
 }
