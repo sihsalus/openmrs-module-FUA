@@ -243,7 +243,7 @@ public class FuaController {
 			/* 4. Headers -------------------------------------------------------- */
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set("fuagentoken", "fuagenerator");
+			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
@@ -663,7 +663,7 @@ public class FuaController {
 
 			// 3️⃣ Headers
 			HttpHeaders headers = new HttpHeaders();
-			headers.set("fuagentoken", "fuagenerator");
+			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<String> entity = new HttpEntity<>(headers);
 
@@ -737,7 +737,7 @@ public class FuaController {
 			log.info("Llamando a microservicio para PDF: " + remoteUrl);
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.set("fuagentoken", "fuagenerator");
+			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<String> entity = new HttpEntity<>(headers);
 			RestTemplate restTemplate = new RestTemplate();
@@ -821,7 +821,7 @@ public class FuaController {
 			/* 3. Headers ------------------------------------------------------ */
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set("fuagentoken", "fuagenerator");
+			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<Map<String, Object>> entity =
 					new HttpEntity<>(requestBody, headers);
@@ -853,6 +853,32 @@ public class FuaController {
 			throw new RuntimeException(
 				"Error generando FUA desde el generador externo: " + e.getMessage(), e);
 		}
+	}
+
+	private String getFuaGeneratorHeaderName() {
+		String headerName = Context.getAdministrationService()
+				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_NAME_GP);
+		
+		if (org.apache.commons.lang3.StringUtils.isBlank(headerName)) {
+			headerName = FuaConfig.FUA_GENERATOR_HEADER_NAME_DEFAULT;
+			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_NAME_GP 
+					+ " not set, using default: " + headerName);
+		}
+		
+		return headerName;
+	}
+
+	private String getFuaGeneratorHeaderValue() {
+		String headerValue = Context.getAdministrationService()
+				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP);
+		
+		if (org.apache.commons.lang3.StringUtils.isBlank(headerValue)) {
+			headerValue = FuaConfig.FUA_GENERATOR_HEADER_VALUE_DEFAULT;
+			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP 
+					+ " not set, using default: " + headerValue);
+		}
+		
+		return headerValue;
 	}
 
 }
