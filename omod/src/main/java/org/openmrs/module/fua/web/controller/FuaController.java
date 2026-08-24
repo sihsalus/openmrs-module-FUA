@@ -14,12 +14,17 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.Encounter;
+import org.openmrs.EncounterProvider;
+import org.openmrs.EncounterRole;
 import org.openmrs.Location;
 import org.openmrs.Obs;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.Person;
 import org.openmrs.PersonAttribute;
+import org.openmrs.PersonName;
+import org.openmrs.Provider;
+import org.openmrs.User;
 import org.openmrs.Visit;
 import org.openmrs.VisitType;
 import org.openmrs.api.context.Context;
@@ -422,12 +427,33 @@ public class FuaController {
 	private Map<String, Object> buildVisitPayload(Visit visit) {
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("uuid", visit.getUuid());
+		payload.put("auditInfo", buildAuditInfoPayload(visit));
 		payload.put("patient", buildPatientPayload(visit.getPatient()));
 		payload.put("visitType", buildVisitTypePayload(visit.getVisitType()));
 		payload.put("location", buildLocationPayload(visit.getLocation()));
 		payload.put("startDatetime", formatDate(visit.getStartDatetime()));
 		payload.put("stopDatetime", formatDate(visit.getStopDatetime()));
 		payload.put("encounters", buildEncounterPayloads(visit));
+		return payload;
+	}
+
+	private Map<String, Object> buildAuditInfoPayload(Visit visit) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("creator", buildUserPayload(visit.getCreator()));
+		payload.put("dateCreated", formatDate(visit.getDateCreated()));
+		payload.put("changedBy", buildUserPayload(visit.getChangedBy()));
+		payload.put("dateChanged", formatDate(visit.getDateChanged()));
+		return payload;
+	}
+
+	private Map<String, Object> buildUserPayload(User user) {
+		if (user == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", user.getUuid());
+		payload.put("display", user.getDisplayString());
 		return payload;
 	}
 
@@ -469,9 +495,11 @@ public class FuaController {
 
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("age", person.getAge());
+		payload.put("birthdate", formatDate(person.getBirthdate()));
 		payload.put("display", person.getPersonName() != null ? person.getPersonName().getFullName() : person.getUuid());
 		payload.put("gender", person.getGender());
 		payload.put("uuid", person.getUuid());
+		payload.put("preferredName", buildPersonNamePayload(person.getPersonName()));
 
 		List<Map<String, Object>> attributes = new ArrayList<>();
 		for (PersonAttribute attribute : person.getAttributes()) {
@@ -491,6 +519,21 @@ public class FuaController {
 			attributes.add(attributePayload);
 		}
 		payload.put("attributes", attributes);
+		return payload;
+	}
+
+	private Map<String, Object> buildPersonNamePayload(PersonName personName) {
+		if (personName == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", personName.getUuid());
+		payload.put("preferred", personName.getPreferred());
+		payload.put("givenName", personName.getGivenName());
+		payload.put("middleName", personName.getMiddleName());
+		payload.put("familyName", personName.getFamilyName());
+		payload.put("familyName2", personName.getFamilyName2());
 		return payload;
 	}
 
@@ -527,10 +570,95 @@ public class FuaController {
 
 			Map<String, Object> encounterPayload = new LinkedHashMap<>();
 			encounterPayload.put("encounterDatetime", formatDate(encounter.getEncounterDatetime()));
+			encounterPayload.put("encounterProviders", buildEncounterProviderPayloads(encounter));
 			encounterPayload.put("obs", buildObsPayloads(encounter));
 			encounters.add(encounterPayload);
 		}
 		return encounters;
+	}
+
+	private List<Map<String, Object>> buildEncounterProviderPayloads(Encounter encounter) {
+		List<Map<String, Object>> encounterProviders = new ArrayList<>();
+		for (EncounterProvider encounterProvider : encounter.getEncounterProviders()) {
+			if (encounterProvider == null || encounterProvider.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> encounterProviderPayload = new LinkedHashMap<>();
+			encounterProviderPayload.put("uuid", encounterProvider.getUuid());
+			encounterProviderPayload.put("display", buildEncounterProviderDisplay(encounterProvider));
+			encounterProviderPayload.put("encounterRole", buildEncounterRolePayload(encounterProvider.getEncounterRole()));
+			encounterProviderPayload.put("provider", buildProviderPayload(encounterProvider.getProvider()));
+			encounterProviders.add(encounterProviderPayload);
+		}
+		return encounterProviders;
+	}
+
+	private String buildEncounterProviderDisplay(EncounterProvider encounterProvider) {
+		if (encounterProvider.getProvider() == null) {
+			return encounterProvider.getUuid();
+		}
+
+		String providerName = encounterProvider.getProvider().getName();
+		if (encounterProvider.getEncounterRole() == null) {
+			return providerName;
+		}
+		return encounterProvider.getEncounterRole().getName() + ": " + providerName;
+	}
+
+	private Map<String, Object> buildEncounterRolePayload(EncounterRole encounterRole) {
+		if (encounterRole == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", encounterRole.getUuid());
+		payload.put("display", encounterRole.getName());
+		return payload;
+	}
+
+	private Map<String, Object> buildProviderPayload(Provider provider) {
+		if (provider == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", provider.getUuid());
+		payload.put("display", provider.getName());
+		payload.put("identifier", provider.getIdentifier());
+		payload.put("person", buildProviderPersonPayload(provider.getPerson()));
+		return payload;
+	}
+
+	private Map<String, Object> buildProviderPersonPayload(Person person) {
+		if (person == null) {
+			return null;
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("uuid", person.getUuid());
+		payload.put("display", person.getPersonName() != null ? person.getPersonName().getFullName() : person.getUuid());
+
+		List<Map<String, Object>> attributes = new ArrayList<>();
+		for (PersonAttribute attribute : person.getAttributes()) {
+			if (attribute == null || attribute.getVoided()) {
+				continue;
+			}
+
+			Map<String, Object> attributePayload = new LinkedHashMap<>();
+			attributePayload.put("uuid", attribute.getUuid());
+			attributePayload.put("value", attribute.getValue());
+
+			Map<String, Object> attributeTypePayload = new LinkedHashMap<>();
+			if (attribute.getAttributeType() != null) {
+				attributeTypePayload.put("uuid", attribute.getAttributeType().getUuid());
+				attributeTypePayload.put("display", attribute.getAttributeType().getName());
+			}
+			attributePayload.put("attributeType", attributeTypePayload);
+			attributes.add(attributePayload);
+		}
+		payload.put("attributes", attributes);
+		return payload;
 	}
 
 	private List<Map<String, Object>> buildObsPayloads(Encounter encounter) {
