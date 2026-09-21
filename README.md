@@ -103,6 +103,13 @@ configuration, invalid inputs, and SQL commit/rollback in an ephemeral H2 databa
 The HTTP transport and all clinical fixtures are synthetic. These tests do not
 establish MariaDB, browser, generator-service or deployed clinical acceptance.
 
+PR CI also builds the distribution through its own Dockerfile, retaining its
+source/release checksum pins and packaging checks. An ephemeral checkout installs
+the candidate FUA archive into the same Maven cache used by the distro build.
+The check compares the final image's FUA bytes with the candidate and verifies
+module requirements against its packaged Core. It neither starts OpenMRS nor
+publishes the image; deployed acceptance remains separate.
+
 Before promoting to QLTY, verify current configured authentication without
 disclosing its values, the immutable module/backend images, a recoverable backup,
 and a non-administrator FUA test role. Verify list, generate, render, PDF and state

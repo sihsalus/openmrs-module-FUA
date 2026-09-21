@@ -30,6 +30,9 @@ jobs:
       - name: Run API and controller tests
         run: mvn -B verify
 
+      - name: Test backend smoke preparation
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: Upload Jacoco coverage report
         if: success()
         uses: actions/upload-artifact@v4
@@ -39,6 +42,7 @@ jobs:
 
   backend-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: compile
     if: github.event_name == 'pull_request'
     permissions:
@@ -57,14 +61,9 @@ jobs:
           java-version: 8
           cache: maven
 
-      - name: Install FUA locally
+      - name: Package FUA candidate
         working-directory: fua
-        run: mvn -B clean install -DskipTests
-
-      - name: Read FUA version
-        id: fua
-        working-directory: fua
-        run: echo "version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
+        run: mvn -B clean package -DskipTests
 
       - name: Check out SIHSALUS backend
         uses: actions/checkout@v4
@@ -73,22 +72,53 @@ jobs:
           path: sihsalus
 
       - name: Point backend to this FUA build
-        working-directory: sihsalus
         run: |
-          sed -i "s/<fua.version>[^<]*<\/fua.version>/<fua.version>${{ steps.fua.outputs.version }}<\/fua.version>/" backend/pom.xml
+          set -euo pipefail
+          set -- fua/omod/target/fua-*.omod
+          [ "$#" -eq 1 ] && [ -f "$1" ]
+          python3 fua/.github/scripts/prepare-backend-smoke.py --backend sihsalus --module "$1"
+          git -C sihsalus rev-parse HEAD
 
-      # El distro (openmrs-core 2.8.x) se construye con Java 21; el settings
-      # template de credentials ya no existe en sihsalus/sihsalus.
-      - name: Set up JDK 21 for distro build
+      - name: Set up JDK 21 for packaged dependency verification
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: 21
-          cache: maven
+
+      - name: Inspect Docker runtime
+        run: |
+          docker context show
+          docker info
+
+      - uses: docker/setup-buildx-action@v3
 
       - name: Build backend with PR FUA
+        uses: docker/build-push-action@v6
+        with:
+          context: sihsalus
+          file: sihsalus/backend/Dockerfile
+          load: true
+          push: false
+          tags: sihsalus-backend:fua-smoke
+          build-args: SECURITY_REFRESH=${{ github.sha }}
+          cache-from: type=gha,scope=fua-backend-smoke
+          cache-to: type=gha,scope=fua-backend-smoke,mode=max
+
+      - name: Verify packaged FUA bytes
+        run: |
+          set -euo pipefail
+          container_id=$(docker create --network none --entrypoint /bin/true sihsalus-backend:fua-smoke)
+          trap 'docker rm --volumes "$container_id" >/dev/null' EXIT
+          mkdir packaged-modules
+          docker cp "$container_id:/openmrs/distribution/openmrs_modules/." packaged-modules/
+          set -- packaged-modules/fua-*.omod
+          [ "$#" -eq 1 ] && [ -f "$1" ]
+          cmp sihsalus/backend/fua-smoke.omod "$1"
+          sha256sum "$1"
+
+      - name: Verify module dependencies against packaged Core
         working-directory: sihsalus
-        run: mvn -B -U -P backend install
+        run: bash tests/backend/module-dependencies-image.sh sihsalus-backend:fua-smoke
 
   publish:
     runs-on: ubuntu-latest
