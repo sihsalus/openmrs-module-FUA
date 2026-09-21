@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.fua.web.utils.FuaAccess;
+import org.openmrs.module.fua.web.utils.FuaGeneratorHeaders;
 import org.openmrs.module.fua.FuaConfig;
 import org.openmrs.module.fua.web.utils.MultipartInputStreamFileResource;
 import org.springframework.http.*;
@@ -28,9 +30,10 @@ import java.nio.charset.StandardCharsets;
 @Controller
 public class FuaRedirectionController {
 
+    protected RestTemplate restTemplate = new RestTemplate();
+
         protected final Log log = LogFactory.getLog(getClass());
         
-        protected final RestTemplate restTemplate = new RestTemplate();
 
 
     @RequestMapping(value = "/FUAFormat", method = RequestMethod.POST)
@@ -40,89 +43,100 @@ public class FuaRedirectionController {
             @RequestParam("createdBy") String createdBy,
             @RequestParam("formatPayload") MultipartFile formatPayload
     ) throws IOException {
+        FuaAccess.require(FuaConfig.MANAGE_FUA_PRIVILEGE);
+        try {
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            HttpHeaders headers = FuaGeneratorHeaders.create();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("name", name);
-        body.add("createdBy", createdBy);
-        body.add("formatPayload", new MultipartInputStreamFileResource(
-                formatPayload.getInputStream(),
-                formatPayload.getOriginalFilename(),
-                formatPayload.getSize()
-        ));
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("name", name);
+            body.add("createdBy", createdBy);
+            body.add("formatPayload", new MultipartInputStreamFileResource(
+                    formatPayload.getInputStream(),
+                    formatPayload.getOriginalFilename(),
+                    formatPayload.getSize()
+            ));
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-        RestTemplate restTemplate = new RestTemplate();
-        String baseUrl = getFuaGeneratorBaseUrl();
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                baseUrl + "/ws/FUAFormat", requestEntity, String.class);
-        //ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:3000/ws/FUAFormat", requestEntity, String.class);
-        //ResponseEntity<String> response = restTemplate.postForEntity("http://hii1sc-dev.inf.pucp.edu.pe/services/fua-generator/ws/FUAFormat", requestEntity, String.class);
+            String baseUrl = getFuaGeneratorBaseUrl();
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    baseUrl + "/ws/FUAFormat", requestEntity, String.class);
+            //ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:3000/ws/FUAFormat", requestEntity, String.class);
+            //ResponseEntity<String> response = restTemplate.postForEntity("http://hii1sc-dev.inf.pucp.edu.pe/services/fua-generator/ws/FUAFormat", requestEntity, String.class);
 
-        return ResponseEntity
-                .status(response.getStatusCode())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(response.getBody());
+            return ResponseEntity
+                    .status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
+        } catch (Exception failure) {
+            log.error("FUA generator request failed");
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\":\"FUA generator request failed\"}");
+        }
     }
 
     @RequestMapping(value = "/FUAFormat", method = RequestMethod.GET)
     @ResponseBody
     public ResponseEntity<String> redirectFuaFormatGetRequest() throws IOException {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
+        try {
+            HttpHeaders headers = FuaGeneratorHeaders.create();
 
-        HttpEntity<Void> requestEntity = new HttpEntity<Void>(headers);
+            HttpEntity<Void> requestEntity = new HttpEntity<Void>(headers);
 
-        RestTemplate restTemplate = new RestTemplate();
-        String baseUrl = getFuaGeneratorBaseUrl();
-        ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl + "/ws/FUAFormat",
-                HttpMethod.GET,
-                requestEntity,
-                String.class);
+            String baseUrl = getFuaGeneratorBaseUrl();
+            ResponseEntity<String> response = restTemplate.exchange(
+                    baseUrl + "/ws/FUAFormat",
+                    HttpMethod.GET,
+                    requestEntity,
+                    String.class);
 
-        String responseBody = response.getBody();
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(responseBody)) {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(responseBody);
+            String responseBody = response.getBody();
+            if (org.apache.commons.lang3.StringUtils.isNotBlank(responseBody)) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(responseBody);
 
-            JsonNode results = root.get("results");
-            if (results != null && results.isArray()) {
-                for (JsonNode item : results) {
-                    if (item.isObject()) {
-                        ((ObjectNode) item).remove("content");
+                JsonNode results = root.get("results");
+                if (results != null && results.isArray()) {
+                    for (JsonNode item : results) {
+                        if (item.isObject()) {
+                            ((ObjectNode) item).remove("content");
+                        }
                     }
                 }
+
+                root.findParents("content").forEach(node -> ((ObjectNode) node).remove("content"));
+
+                responseBody = mapper.writeValueAsString(root);
             }
 
-            root.findParents("content").forEach(node -> ((ObjectNode) node).remove("content"));
-
-            responseBody = mapper.writeValueAsString(root);
+            return ResponseEntity
+                    .status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(responseBody);
+        } catch (Exception failure) {
+            log.error("FUA generator request failed");
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\":\"FUA generator request failed\"}");
         }
-
-        return ResponseEntity
-                .status(response.getStatusCode())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(responseBody);
     }
 
     @RequestMapping(value = "/FUAFormat/{id}/render", method = RequestMethod.POST, produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     public ResponseEntity<String> redirectFuaFormatRenderRequest(@PathVariable("id") String id) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
         String remoteUrl = null;
         try {
             log.info("Renderizando FUAFormat para id: " + id);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
+            HttpHeaders headers = FuaGeneratorHeaders.create();
 
             HttpEntity<Void> requestEntity = new HttpEntity<Void>(headers);
 
-            RestTemplate restTemplate = new RestTemplate();
             String baseUrl = getFuaGeneratorBaseUrl();
             remoteUrl = baseUrl + "/ws/FUAFormat/"
                     + UriUtils.encodePathSegment(id, StandardCharsets.UTF_8)
@@ -139,49 +153,20 @@ public class FuaRedirectionController {
             log.info("Respuesta de FUA Generator para FUAFormat render. Status: " + response.getStatusCode());
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                log.error("Error renderizando FUAFormat. Status: " + response.getStatusCode()
-                        + ", body: " + response.getBody());
-                return ResponseEntity
-                        .status(response.getStatusCode())
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                         .contentType(MediaType.TEXT_HTML)
-                        .body("<h2>Error renderizando FUAFormat</h2><pre>Status: "
-                                + response.getStatusCode()
-                                + "\nURL: "
-                                + remoteUrl
-                                + "\n\n"
-                                + response.getBody()
-                                + "</pre>");
+                        .body("<h2>No se pudo completar la solicitud FUA.</h2>");
             }
 
             return ResponseEntity
                     .ok()
                     .contentType(MediaType.TEXT_HTML)
                     .body(response.getBody());
-        } catch (HttpStatusCodeException ex) {
-            log.error("Error HTTP renderizando FUAFormat. Id: " + id
-                    + ", URL: " + remoteUrl
-                    + ", status: " + ex.getStatusCode()
-                    + ", body: " + ex.getResponseBodyAsString(), ex);
-            return ResponseEntity
-                    .status(ex.getStatusCode())
-                    .contentType(MediaType.TEXT_HTML)
-                    .body("<h2>Error renderizando FUAFormat</h2><pre>Status: "
-                            + ex.getStatusCode()
-                            + "\nURL: "
-                            + remoteUrl
-                            + "\n\n"
-                            + ex.getResponseBodyAsString()
-                            + "</pre>");
         } catch (Exception ex) {
-            log.error("Error interno renderizando FUAFormat. Id: " + id + ", URL: " + remoteUrl, ex);
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            log.error("FUA generator request failed");
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.TEXT_HTML)
-                    .body("<h2>Error interno renderizando FUAFormat</h2><pre>URL: "
-                            + remoteUrl
-                            + "\n\n"
-                            + ex.getMessage()
-                            + "</pre>");
+                    .body("<h2>No se pudo completar la solicitud FUA.</h2>");
         }
     }
 
@@ -198,33 +183,4 @@ public class FuaRedirectionController {
 		
 		return url;
 	}
-
-	private String getFuaGeneratorHeaderName() {
-		String headerName = Context.getAdministrationService()
-				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_NAME_GP);
-		
-		if (org.apache.commons.lang3.StringUtils.isBlank(headerName)) {
-			headerName = FuaConfig.FUA_GENERATOR_HEADER_NAME_DEFAULT;
-			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_NAME_GP 
-					+ " not set, using default: " + headerName);
-		}
-		
-		return headerName;
-	}
-
-	private String getFuaGeneratorHeaderValue() {
-		String headerValue = Context.getAdministrationService()
-				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP);
-		
-		if (org.apache.commons.lang3.StringUtils.isBlank(headerValue)) {
-			headerValue = FuaConfig.FUA_GENERATOR_HEADER_VALUE_DEFAULT;
-			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP 
-					+ " not set, using default: " + headerValue);
-		}
-		
-		return headerValue;
-	}
-
-
-    
 }

@@ -6,6 +6,8 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaEstado;
+import org.openmrs.module.fua.FuaVersion;
+import org.openmrs.module.fua.api.dao.FuaVersionDao;
 
 import org.openmrs.module.fua.api.FuaService;
 import org.openmrs.module.fua.api.dao.FuaDao;
@@ -19,6 +21,12 @@ import java.util.UUID;
 public class FuaServiceImpl extends BaseOpenmrsService implements FuaService {
 	
 	private FuaDao dao;
+
+	private FuaVersionDao versionDao;
+
+	public void setVersionDao(FuaVersionDao versionDao) {
+		this.versionDao = versionDao;
+	}
 	
 	public void setDao(FuaDao dao) {
 		this.dao = dao;
@@ -55,6 +63,10 @@ public class FuaServiceImpl extends BaseOpenmrsService implements FuaService {
 			throw new APIException("Estado FUA no válido");
 		}
 		
+		FuaVersion previous = new FuaVersion(fua);
+		previous.setDescripcion("Update estado de FUA");
+		versionDao.saveFuaVersion(previous);
+		fua.setVersion(fua.getVersion() + 1);
 		fua.setFuaEstado(nuevoEstado);
 		return dao.saveFua(fua);
 	}

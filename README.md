@@ -14,8 +14,8 @@ Published releases are available from Maven Central under:
 
 Building from Source
 --------------------
-You will need to have Java 1.6+ and Maven 2.x+ installed.  Use the command 'mvn package' to 
-compile and package the module.  The .omod file will be in the omod/target folder.
+Use Java 8 or Java 21 and Maven 3.9+. Run `mvn clean verify` to test and
+package the module.  The .omod file will be in the omod/target folder.
 
 Alternatively you can add the snippet provided in the [Creating Modules](https://wiki.openmrs.org/x/cAEr) page to your 
 omod/pom.xml and use the mvn command:
@@ -55,5 +55,64 @@ If uploads are not allowed from the web (changable via a runtime property), you 
 into the ~/.OpenMRS/modules folder.  (Where ~/.OpenMRS is assumed to be the Application 
 Data Directory that the running openmrs is currently using.)  After putting the file in there 
 simply restart OpenMRS/tomcat and the module will be loaded and started.
+
+Configuration and access for 1.0.90
+----------------------------------
+
+Related distribution issue: https://github.com/sihsalus/sihsalus/issues/244.
+The distribution already uses 1.0.89; this candidate completes the remaining
+configuration and access work without replacing a published artifact.
+
+All generator calls use the current `fua.generator.headerName` and
+`fua.generator.headerValue` global properties through one header builder.
+There is no fallback token. Missing, blank, malformed or transport-reserved
+headers stop the request before contacting the generator. Configure the secret
+through the environment's approved secret-management procedure; never put it in
+source, screenshots or request logs. Existing global-property values are retained
+on upgrade and must be reviewed before rollout. Removing the packaged default
+does not rotate a value already stored in a database.
+
+The module reuses the privilege names already provisioned in `config.xml`:
+
+| Operation | Required FUA privilege |
+| --- | --- |
+| Lists, individual records, state catalog, render and PDF | `Read Fua` |
+| Record generation, record save, format upload and state creation | `Manage Fua` |
+| Change a record's state | `Update Fua` |
+| Purge a record or state through the legacy form | `Delete Fua` |
+
+Generation and state changes also read existing FUA records/catalog metadata and
+require `Read Fua`. Other OpenMRS patient/visit privileges still apply to clinical
+generation. No role assignments or duplicate suffixed privileges are created.
+Anonymous requests receive 401 and authenticated callers without the operation's
+privilege receive 403 before controller work. Service authorization remains in
+place for non-HTTP consumers.
+
+State changes use the existing authorized `updateEstadoFua` service. The prior
+version, revision increment and state update share its transaction; a persistence
+failure rolls back all of them. Generator failures return generic errors without
+upstream response bodies or exception details.
+
+Validation and rollout
+----------------------
+
+Run the complete reactor with `mvn --batch-mode --no-transfer-progress clean verify`.
+Tests exercise OpenMRS authorization advice, every mapped controller's denial
+path, actual header construction in seven generator request flows, changed
+configuration, invalid inputs, and SQL commit/rollback in an ephemeral H2 database.
+The HTTP transport and all clinical fixtures are synthetic. These tests do not
+establish MariaDB, browser, generator-service or deployed clinical acceptance.
+
+Before promoting to QLTY, verify current configured authentication without
+disclosing its values, the immutable module/backend images, a recoverable backup,
+and a non-administrator FUA test role. Verify list, generate, render, PDF and state
+update against a journaled synthetic visit. Confirm both allowed and denied
+operations, historical-version preservation and absence of duplicate records.
+Publish 1.0.90 only after required review/CI, then change the distribution pin in a
+separate reviewed change. This branch neither publishes nor deploys the module.
+
+Rollback preserves existing FUA records, versions and global properties. Restoring
+the previous module also restores its previous access/configuration behavior; it
+does not undo committed data changes or rotate credentials.
 
 Made with love

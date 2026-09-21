@@ -27,8 +27,8 @@ jobs:
       - name: Compile FUA
         run: mvn -B clean package -DskipTests
 
-      - name: Run unit tests
-        run: mvn -B -pl api test
+      - name: Run API and controller tests
+        run: mvn -B verify
 
       - name: Upload Jacoco coverage report
         if: success()
