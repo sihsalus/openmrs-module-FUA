@@ -19,13 +19,13 @@ public class FuaConfig {
 	
 	public final static String MODULE_PRIVILEGE = "Fua Privilege";
 	
-	public final static String READ_FUA_PRIVILEGE = "Read Fua Privilege";
+	public final static String READ_FUA_PRIVILEGE = "Read Fua";
 	
-	public final static String MANAGE_FUA_PRIVILEGE = "Manage Fua Privilege";
+	public final static String MANAGE_FUA_PRIVILEGE = "Manage Fua";
 	
-	public final static String DELETE_FUA_PRIVILEGE = "Delete Fua Privilege";
+	public final static String DELETE_FUA_PRIVILEGE = "Delete Fua";
 	
-	public final static String UPDATE_FUA_PRIVILEGE = "Update Fua Privilege";
+	public final static String UPDATE_FUA_PRIVILEGE = "Update Fua";
 
 	// Global Property for FUA Generator microservice URL
     public final static String FUA_GENERATOR_URL_GP = "fua.generator.url";
@@ -34,11 +34,7 @@ public class FuaConfig {
 
 	public final static String FUA_GENERATOR_HEADER_NAME_GP = "fua.generator.headerName";
 	
-	public final static String FUA_GENERATOR_HEADER_NAME_DEFAULT = "fuagentoken";
-	
 	public final static String FUA_GENERATOR_HEADER_VALUE_GP = "fua.generator.headerValue";
-	
-	public final static String FUA_GENERATOR_HEADER_VALUE_DEFAULT = "fuagenerator";
 
 	public final static String FUA_GENERATOR_IDENTIFIER = "fua.identifier";
 }

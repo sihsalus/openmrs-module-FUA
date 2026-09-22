@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>io.github.proyecto-santaclotilde</groupId>
 		<artifactId>fua</artifactId>
-		<version>1.0.89</version>
+		<version>1.0.90</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
@@ -17,6 +17,12 @@
 	<description>API project for Fua</description>
 
 	<dependencies>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.200</version>
+            <scope>test</scope>
+        </dependency>
 		<!-- JUnit 4 para tests -->
 		<dependency>
 		<groupId>junit</groupId>
@@ -44,7 +50,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.8</version>
+				<version>0.8.12</version>
 				<executions>
 					<!-- 1) Prepara el agente antes de los tests -->
 					<execution>

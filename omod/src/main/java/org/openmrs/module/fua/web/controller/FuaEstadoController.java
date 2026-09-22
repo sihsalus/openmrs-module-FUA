@@ -3,6 +3,8 @@ package org.openmrs.module.fua.web.controller;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.fua.FuaConfig;
+import org.openmrs.module.fua.web.utils.FuaAccess;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.FuaEstado;
 import org.openmrs.module.fua.api.FuaEstadoService;
@@ -31,6 +33,7 @@ public class FuaEstadoController {
 
     @RequestMapping(method = RequestMethod.GET)
     public String onGet(ModelMap model, @RequestParam(value = "estadoId", required = false) Integer estadoId) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
         FuaEstado estado = (estadoId != null) ? fuaEstadoService.getEstado(estadoId) : new FuaEstado();
         model.addAttribute("estado", estado);
         model.addAttribute("estados", fuaEstadoService.getAllEstados());
@@ -40,6 +43,7 @@ public class FuaEstadoController {
     @RequestMapping(method = RequestMethod.POST)
     public String onPost(HttpSession httpSession, @ModelAttribute("estado") FuaEstado estado, BindingResult errors,
                          @RequestParam(required = false, value = "action") String action) {
+        FuaAccess.require("purge".equals(action) ? FuaConfig.DELETE_FUA_PRIVILEGE : FuaConfig.MANAGE_FUA_PRIVILEGE);
 
         MessageSourceService mss = Context.getMessageSourceService();
 
@@ -67,6 +71,7 @@ public class FuaEstadoController {
     @RequestMapping(value = "/list", method = RequestMethod.GET, produces = "application/json")
     @ResponseBody
     public List<FuaEstado> getAllEstados() {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
         log.info("Llamada a /module/fua/estado/list");
         return fuaEstadoService.getAllEstados();
     }
@@ -74,6 +79,7 @@ public class FuaEstadoController {
     @RequestMapping(value = "/create", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
     @ResponseBody
     public ResponseEntity<?> createEstado(@RequestBody FuaEstado nuevoEstado) {
+        FuaAccess.require(FuaConfig.MANAGE_FUA_PRIVILEGE);
         if (!Context.isAuthenticated()) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para crear el estado.");
 		}
