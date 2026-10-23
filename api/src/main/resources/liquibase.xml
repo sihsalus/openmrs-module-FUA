@@ -230,5 +230,46 @@
 
     </changeSet>
 
+    <!-- Tabla fua_observacion -->
+    <changeSet id="fua_observacion-2026-10-22-01" author="pedro">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="fua_observacion"/></not>
+        </preConditions>
+        <createTable tableName="fua_observacion">
+            <column name="fua_observacion_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="fua_uuid" type="char(38)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="observacion" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="usuario" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="activo" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fecha_creacion" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fecha_actualizacion" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="fua_observacion"
+                                 baseColumnNames="fua_uuid"
+                                 referencedTableName="fua"
+                                 referencedColumnNames="uuid"
+                                 constraintName="fk_fua_observacion_fua"/>
+    </changeSet>
+
 
 </databaseChangeLog>
