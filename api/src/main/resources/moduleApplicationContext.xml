@@ -147,5 +147,27 @@
         </property>
     </bean>
 
+    <!-- Servicio para observaciones de FUA -->
+    <bean id="fua.FuaObservacionService"
+        class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+        <property name="transactionManager"><ref bean="transactionManager"/></property>
+        <property name="target">
+            <bean class="org.openmrs.module.fua.api.impl.FuaObservacionServiceImpl">
+                <property name="dao" ref="fua.FuaObservacionDao"/>
+            </bean>
+        </property>
+        <property name="preInterceptors"><ref bean="serviceInterceptors"/></property>
+        <property name="transactionAttributeSource"><ref bean="transactionAttributeSource"/></property>
+    </bean>
+
+    <bean parent="serviceContext">
+        <property name="moduleService">
+            <list>
+                <value>org.openmrs.module.fua.api.FuaObservacionService</value>
+                <ref bean="fua.FuaObservacionService"/>
+            </list>
+        </property>
+    </bean>
+
 
 </beans>
