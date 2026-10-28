@@ -22,7 +22,17 @@ public class FuaObservacionServiceImpl extends BaseOpenmrsService implements Fua
 	}
 
 	@Override
+	public FuaObservacion getFuaObservacion(String uuid) throws APIException {
+		return dao.getFuaObservacion(uuid);
+	}
+
+	@Override
 	public List<FuaObservacion> getFuaObservaciones(String fuaUuid, Integer version) throws APIException {
 		return dao.getFuaObservaciones(fuaUuid, version);
+	}
+
+	@Override
+	public List<FuaObservacion> getFuaObservaciones(String fuaUuid) throws APIException {
+		return dao.getFuaObservaciones(fuaUuid);
 	}
 }

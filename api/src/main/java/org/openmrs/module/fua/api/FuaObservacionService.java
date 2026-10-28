@@ -13,5 +13,11 @@ public interface FuaObservacionService extends OpenmrsService {
 	FuaObservacion saveFuaObservacion(FuaObservacion observacion) throws APIException;
 
 	@Transactional(readOnly = true)
+	FuaObservacion getFuaObservacion(String uuid) throws APIException;
+
+	@Transactional(readOnly = true)
 	List<FuaObservacion> getFuaObservaciones(String fuaUuid, Integer version) throws APIException;
+
+	@Transactional(readOnly = true)
+	List<FuaObservacion> getFuaObservaciones(String fuaUuid) throws APIException;
 }

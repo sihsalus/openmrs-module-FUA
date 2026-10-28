@@ -19,8 +19,14 @@ public class FuaObservacionDao {
 	}
 
 	public FuaObservacion saveFuaObservacion(FuaObservacion observacion) {
-		getSession().save(observacion);
+		getSession().saveOrUpdate(observacion);
 		return observacion;
+	}
+
+	public FuaObservacion getFuaObservacion(String uuid) {
+		return (FuaObservacion) getSession().createQuery(
+				"FROM FuaObservacion fo WHERE fo.uuid = :uuid AND fo.activo = true")
+				.setParameter("uuid", uuid).uniqueResult();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -31,5 +37,13 @@ public class FuaObservacionDao {
 				.setParameter("fuaUuid", fuaUuid)
 				.setParameter("version", version)
 				.list();
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<FuaObservacion> getFuaObservaciones(String fuaUuid) {
+		return getSession().createQuery(
+				"FROM FuaObservacion fo WHERE fo.fuaUuid = :fuaUuid AND fo.activo = true "
+						+ "ORDER BY fo.fechaCreacion DESC, fo.id DESC")
+				.setParameter("fuaUuid", fuaUuid).list();
 	}
 }

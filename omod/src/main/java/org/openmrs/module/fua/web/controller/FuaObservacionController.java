@@ -68,11 +68,66 @@ public class FuaObservacionController {
 		if (fua == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
 		}
-		Integer versionConsultada = version != null ? version : fua.getVersion();
-		if (versionConsultada == null || versionConsultada < 1) {
+		if (version != null && version < 1) {
 			return ResponseEntity.badRequest().body("La versión debe ser un entero positivo.");
 		}
-		List<FuaObservacion> observaciones = fuaObservacionService.getFuaObservaciones(fuaUuid, versionConsultada);
+		List<FuaObservacion> observaciones = version == null
+				? fuaObservacionService.getFuaObservaciones(fuaUuid)
+				: fuaObservacionService.getFuaObservaciones(fuaUuid, version);
 		return ResponseEntity.ok(observaciones);
+	}
+
+	@RequestMapping(value = "/editar/{fuaUuid}/{observacionUuid}", method = RequestMethod.PUT,
+			consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public ResponseEntity<?> editarObservacion(@PathVariable("fuaUuid") String fuaUuid,
+			@PathVariable("observacionUuid") String observacionUuid, @RequestBody Map<String, Object> body) {
+		Object texto = body != null ? body.get("observacion") : null;
+		Object nombreUsuario = body != null ? body.get("usuario") : null;
+		if (!(texto instanceof String) || StringUtils.isBlank((String) texto) || ((String) texto).length() > 500) {
+			return ResponseEntity.badRequest().body("'observacion' debe tener entre 1 y 500 caracteres.");
+		}
+		if (!(nombreUsuario instanceof String) || StringUtils.isBlank((String) nombreUsuario)
+				|| ((String) nombreUsuario).length() > 50) {
+			return ResponseEntity.badRequest().body("'usuario' debe tener entre 1 y 50 caracteres.");
+		}
+		FuaObservacion observacion = fuaObservacionService.getFuaObservacion(observacionUuid);
+		if (observacion == null || !fuaUuid.equals(observacion.getFuaUuid())) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
+		}
+		Fua fua = fuaService.getFuaByUuid(fuaUuid);
+		if (fua == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
+		}
+		if (!fua.getVersion().equals(observacion.getVersion())) {
+			return ResponseEntity.status(HttpStatus.CONFLICT)
+					.body("Solo se pueden editar observaciones de la versión actual del FUA.");
+		}
+		observacion.setObservacion((String) texto);
+		observacion.setUsuario((String) nombreUsuario);
+		observacion.setFechaActualizacion(new java.util.Date());
+		return ResponseEntity.ok(fuaObservacionService.saveFuaObservacion(observacion));
+	}
+
+	@RequestMapping(value = "/eliminar/{fuaUuid}/{observacionUuid}", method = RequestMethod.PUT)
+	@ResponseBody
+	public ResponseEntity<?> eliminarObservacion(@PathVariable("fuaUuid") String fuaUuid,
+			@PathVariable("observacionUuid") String observacionUuid) {
+		FuaObservacion observacion = fuaObservacionService.getFuaObservacion(observacionUuid);
+		if (observacion == null || !fuaUuid.equals(observacion.getFuaUuid())) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
+		}
+		Fua fua = fuaService.getFuaByUuid(fuaUuid);
+		if (fua == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
+		}
+		if (!fua.getVersion().equals(observacion.getVersion())) {
+			return ResponseEntity.status(HttpStatus.CONFLICT)
+					.body("Solo se pueden eliminar observaciones de la versión actual del FUA.");
+		}
+		observacion.setActivo(false);
+		observacion.setFechaActualizacion(new java.util.Date());
+		fuaObservacionService.saveFuaObservacion(observacion);
+		return ResponseEntity.noContent().build();
 	}
 }
