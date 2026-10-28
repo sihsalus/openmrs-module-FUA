@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.api.APIException;
 import org.openmrs.module.fua.api.dao.FuaDao;
+import org.openmrs.module.fua.api.dao.FuaVersionDao;
 import org.openmrs.module.fua.api.impl.FuaServiceImpl;
 
 import java.time.LocalDate;
@@ -25,11 +26,20 @@ public class FuaServiceTest {
     private InMemoryFuaDao inMemoryDao;
     private FuaServiceImpl fuaService;
 
+    private FuaVersion savedVersion;
+
     @Before
     public void setUp() {
         inMemoryDao = new InMemoryFuaDao();
         fuaService = new FuaServiceImpl();
         fuaService.setDao(inMemoryDao); 
+        fuaService.setVersionDao(new FuaVersionDao() {
+            @Override
+            public FuaVersion saveFuaVersion(FuaVersion previous) {
+                savedVersion = previous;
+                return previous;
+            }
+        });
     }
 
     @Test
@@ -102,6 +112,10 @@ public class FuaServiceTest {
         // given
         Integer fuaId = 1;
         Fua existingFua = new Fua();
+        existingFua.setVersion(3);
+        FuaEstado previousEstado = new FuaEstado();
+        previousEstado.setId(2);
+        existingFua.setFuaEstado(previousEstado);
         FuaEstado nuevoEstado = new FuaEstado();
         nuevoEstado.setId(1); // asignamos un ID válido
 
@@ -113,6 +127,9 @@ public class FuaServiceTest {
         // then
         assertSame("El estado del FUA debe actualizarse", nuevoEstado, existingFua.getFuaEstado());
         assertSame("El FUA actualizado debe haberse guardado en el DAO", existingFua, inMemoryDao.lastSavedFua);
+        assertSame(previousEstado, savedVersion.getFuaEstado());
+        assertEquals(Integer.valueOf(3), savedVersion.getVersion());
+        assertEquals(Integer.valueOf(4), existingFua.getVersion());
         assertSame("El servicio debe devolver el FUA guardado", existingFua, result);
         assertEquals("El servicio debe pedir el FUA al DAO con el ID correcto", fuaId, inMemoryDao.lastFuaId);
     }

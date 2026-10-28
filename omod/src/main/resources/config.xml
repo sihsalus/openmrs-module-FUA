@@ -86,7 +86,7 @@
 	</globalProperty>
 	<globalProperty>
 		<property>fua.generator.headerValue</property>
-		<defaultValue>fuagenerator</defaultValue>
+		<defaultValue></defaultValue>
 		<description>
 			HTTP header value used when communicating with the FUA Generator microservice.
 		</description>

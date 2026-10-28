@@ -28,6 +28,8 @@ import org.openmrs.User;
 import org.openmrs.Visit;
 import org.openmrs.VisitType;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.fua.web.utils.FuaAccess;
+import org.openmrs.module.fua.web.utils.FuaGeneratorHeaders;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaEstado;
@@ -73,6 +75,8 @@ import org.apache.commons.lang3.StringUtils;
 @Controller
 @RequestMapping(value = "/module/fua")
 public class FuaController {
+
+    protected RestTemplate restTemplate = new RestTemplate();
 	
 	protected final Log log = LogFactory.getLog(getClass());
 	
@@ -92,6 +96,7 @@ public class FuaController {
 	
 	@RequestMapping(method = RequestMethod.GET)
 	public String onGet(ModelMap model, @RequestParam(value = "fuaId", required = false) Integer fuaId) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		Fua fua = (fuaId != null) ? fuaService.getFua(fuaId) : new Fua();
 		model.addAttribute("fua", fua);
 		model.addAttribute("fuas", fuaService.getAllFuas());
@@ -102,6 +107,7 @@ public class FuaController {
 	@RequestMapping(method = RequestMethod.POST)
 	public String onPost(HttpSession httpSession, @ModelAttribute("fua") Fua fua, BindingResult errors,
 	        @RequestParam(required = false, value = "action") String action) {
+        FuaAccess.require("purge".equals(action) ? FuaConfig.DELETE_FUA_PRIVILEGE : FuaConfig.MANAGE_FUA_PRIVILEGE);
 		
 		MessageSourceService mss = Context.getMessageSourceService();
 		
@@ -118,7 +124,7 @@ public class FuaController {
 			}
 			catch (Exception ex) {
 				httpSession.setAttribute(WebConstants.OPENMRS_ERROR_ATTR, "fua.delete.failure");
-				log.error("Error al eliminar FUA", ex);
+				log.error("FUA request failed");
 			}
 		} else {
 			fuaService.saveFua(fua);
@@ -130,6 +136,7 @@ public class FuaController {
 	@RequestMapping(value = "/list", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
 	public List<Fua> getAllFuas() {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		log.info("Llamada a /module/fua/list");
 		return fuaService.getAllFuas();
 	}
@@ -137,6 +144,7 @@ public class FuaController {
 	@RequestMapping(value = "/uuid/{uuid}", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> getFuaByUuid(@PathVariable("uuid") String uuid) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		Fua fua = fuaService.getFuaByUuid(uuid);
 
         if (fua == null) {
@@ -146,70 +154,7 @@ public class FuaController {
 		return ResponseEntity.ok(fua);
 	}
 
-	/*
-	@RequestMapping(
-			value    = "/visitInfo/{visitUuid}/generator/{identifierFormat}",
-			method   = RequestMethod.POST,
-			produces = "text/html")       // devolvemos HTML
-	@ResponseBody
-	public ResponseEntity<?> renderVisitInfo(
-			@PathVariable String visitUuid,
-			@PathVariable String identifierFormat) {
 
-		try {
-			// 1. Buscamos el FUA ------------------------------------------------ 
-			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
-			if (fua == null) {
-				return ResponseEntity.status(HttpStatus.NOT_FOUND)
-						.body("FUA no encontrado para visitUuid: " + visitUuid);
-			}
-
-			// 2. Pasamos payload de String → JSON ------------------------------
-			ObjectMapper mapper  = new ObjectMapper();
-			JsonNode payloadJson;
-			try {
-				payloadJson = StringUtils.isBlank(fua.getPayload())
-						? mapper.createObjectNode()
-						: mapper.readTree(fua.getPayload());
-
-			} catch (JsonProcessingException ex) {
-				// Si no es JSON válido, lo mandamos como texto
-				payloadJson = mapper.getNodeFactory().textNode(fua.getPayload());
-			}
-
-			// 3. Construimos el body para el microservicio ---------------------
-			Map<String, Object> requestBody = new HashMap<>();
-			requestBody.put("payload", payloadJson);
-			
-			// 4. Llamamos al microservicio -------------------------------------
-
-			String baseUrl = getFuaGeneratorBaseUrl();
-			String remoteUrl = baseUrl + "/ws/FUAFormat/"
-					+ UriUtils.encodePath(identifierFormat, StandardCharsets.UTF_8)
-					+ "/render";
-
-			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set("fuagentoken", "soyuntokenxd"); // ← tu header personalizado
-
-			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-			RestTemplate restTemplate = new RestTemplate(
-					new HttpComponentsClientHttpRequestFactory()); // permite body en GET
-
-			ResponseEntity<String> remoteResp = restTemplate.exchange(
-					remoteUrl, HttpMethod.POST, entity, String.class);
-
-			// 5. Devolvemos el HTML recibido ----------------------------------- 
-			return ResponseEntity.status(remoteResp.getStatusCode())
-					.contentType(MediaType.TEXT_HTML)
-					.body(remoteResp.getBody());
-
-		} catch (Exception ex) {
-			return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-					.body("Error procesando la solicitud: " + ex.getMessage());
-		}
-	}
-	*/
 
 	@RequestMapping(
 			value    = "/visitInfo/{visitUuid}/generator/{identifierFormat}",
@@ -219,6 +164,8 @@ public class FuaController {
 	public ResponseEntity<?> renderVisitInfo(
 			@PathVariable String visitUuid,
 			@PathVariable String identifierFormat) {
+        FuaAccess.require(FuaConfig.MANAGE_FUA_PRIVILEGE);
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 
 		try {
 			/* 1. Buscamos el FUA ------------------------------------------------ */
@@ -246,13 +193,11 @@ public class FuaController {
 			String remoteUrl = baseUrl + "/ws/FUAFromVisit";
 
 			/* 4. Headers -------------------------------------------------------- */
-			HttpHeaders headers = new HttpHeaders();
+			HttpHeaders headers = FuaGeneratorHeaders.create();
 			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-			RestTemplate restTemplate = new RestTemplate();
 
 			/* 5. Llamada POST al microservicio --------------------------------- */
 			ResponseEntity<String> remoteResp = restTemplate.exchange(
@@ -268,7 +213,7 @@ public class FuaController {
 
 		} catch (Exception ex) {
 			return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-					.body("Error procesando la solicitud: " + ex.getMessage());
+					.body("No se pudo completar la solicitud FUA.");
 		}
 	}
 
@@ -279,6 +224,7 @@ public class FuaController {
 	@RequestMapping(value = "/patient/{patientUuid}", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> getFuasByPatientUuid(@PathVariable("patientUuid") String patientUuid) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		List<Fua> fuas = fuaService.getFuasByPatientUuid(patientUuid);
 		return ResponseEntity.ok(fuas);
 	}
@@ -286,6 +232,7 @@ public class FuaController {
 	@RequestMapping(value = "/id/{id}", method = RequestMethod.GET, produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> getFuaById(@PathVariable("id") Integer id) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		Fua fua = fuaService.getFuaById(id);
 
 		if (fua == null) {
@@ -295,24 +242,7 @@ public class FuaController {
 		return ResponseEntity.ok(fua);
 	}
 
-	/*@RequestMapping(value = "/visitInfo/{visitUuid}", method = RequestMethod.GET, produces = "application/json")
-	@ResponseBody
-	public ResponseEntity<?> getPayloadInfoByVisitUuid(@PathVariable("visitUuid") String visitUuid) {
-		Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
 
-		if (fua == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body("FUA no encontrado para visitUuid: " + visitUuid);
-		}
-
-		// Construir el objeto de respuesta
-		Map<String, String> response = new HashMap<>();
-		response.put("payload", fua.getPayload() != null ? fua.getPayload() : "");
-		response.put("token", "---");
-		response.put("format", "---");
-
-		return ResponseEntity.ok(response);
-	}*/
 
 
 	@RequestMapping(value = "/solicitudes", method = RequestMethod.GET, produces = "application/json")
@@ -324,6 +254,7 @@ public class FuaController {
 			@RequestParam(value = "page", defaultValue = "1") int page,
 			@RequestParam(value = "size", defaultValue = "10") int size
 	) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
 		LocalDate fechaInicio = null;
 		LocalDate fechaFin = null;
@@ -353,7 +284,10 @@ public class FuaController {
 	@RequestMapping(value = "/generateFromVisit/{visitUuid}", method = RequestMethod.POST, produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> generateFuaFromVisit(@PathVariable String visitUuid) {
+        FuaAccess.require(FuaConfig.MANAGE_FUA_PRIVILEGE);
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		try {
+            FuaGeneratorHeaders.create(); // Validate configuration before persisting a previous version.
 			
 			log.info("Generando FUA desde visita UUID: " + visitUuid);
 
@@ -381,31 +315,12 @@ public class FuaController {
 				fua.setPayload(payload);
 				fua.setFuaEstado(estadoPendiente);
 				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
-				System.out.println("///////////////EL FUA ES NULL///////////////////////////////////////////////: " + fua);
-				System.out.println("	EL FUA ES NUEVO:");
-				System.out.println("	UUID: " + fua.getUuid());
-				System.out.println("	ESTADO: " + fua.getFuaEstado());
-				System.out.println("	ID: " + fua.getId());
 			}
 			else{
 				fuaVersionService.saveFuaVersion(fua, "GenerateFromVisit");
 				fua.setPayload(payload);
 				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
-				System.out.println("///////////////EL FUA NO ES NULL///////////////////////////////////////////////: " + fua);
 			}
-			
-			System.out.println("===== DETALLES DEL FUA =====");
-			System.out.println("ID: " + fua.getId());
-			System.out.println("UUID: " + fua.getUuid());
-			System.out.println("Visit UUID: " + fua.getVisitUuid());
-			System.out.println("Name: " + fua.getName());
-			System.out.println("Payload: Siempre tiene algo xd");
-			System.out.println("Estado: " + (fua.getFuaEstado() != null ? fua.getFuaEstado().getNombre() : "null")); // Asumiendo que FuaEstado tiene getNombre()
-			System.out.println("Fecha de creación: " + fua.getFechaCreacion());
-			System.out.println("Fecha de actualización: " + fua.getFechaActualizacion());
-			System.out.println("Versión: " + fua.getVersion());
-			System.out.println("Activo: " + fua.getActivo());
-			System.out.println("==================================");
 
 
 			fuaService.saveFua(fua);
@@ -414,12 +329,12 @@ public class FuaController {
 			return ResponseEntity.ok(fua);
 
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			log.error("Error HTTP al obtener visita: " + ex.getStatusCode(), ex);
-			return ResponseEntity.status(ex.getStatusCode()).body(ex.getResponseBodyAsString());
+			log.error("FUA request failed");
+			return ResponseEntity.status(ex.getStatusCode()).body("No se pudo completar la solicitud FUA.");
 		} catch (Exception e) {
-			log.error("Error inesperado al generar FUA desde visita: " + visitUuid, e);
+			log.error("FUA request failed");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-			        .body("Error al generar el FUA: " + e.getMessage());
+			        .body("No se pudo completar la solicitud FUA.");
 		}
 	}
 
@@ -697,6 +612,8 @@ public class FuaController {
 	@RequestMapping(value = "/estado/update/{fuaId}", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
 	@ResponseBody
 	public ResponseEntity<?> actualizarEstadoFua(@PathVariable Integer fuaId, @RequestBody Map<String, Object> body) {
+        FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		try {
 			if (!Context.isAuthenticated()) {
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Debe autenticarse para actualizar el estado del FUA.");
@@ -722,18 +639,11 @@ public class FuaController {
 				nuevoEstadoId = estadoDouble.intValue();
 			}
 			
-			Fua fua = fuaService.getFuaById(fuaId);
-			fuaVersionService.saveFuaVersion(fua, "Update estado de FUA");
-
-			FuaEstado estadoPendiente = fuaEstadoService.getEstado(nuevoEstadoId);
-			
-			fua.setFuaEstado(estadoPendiente);
-			fuaService.saveFua(fua);
-
-
-			return ResponseEntity.ok(fua);
+            FuaEstado nuevoEstado = fuaEstadoService.getEstado(nuevoEstadoId);
+            Fua fua = fuaService.updateEstadoFua(fuaId, nuevoEstado);
+            return ResponseEntity.ok(fua);
 		} catch (Exception e) {
-			log.error("Error al actualizar el estado del FUA", e);
+			log.error("FUA request failed");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno al actualizar el estado del FUA.");
 		}
 	}
@@ -759,6 +669,7 @@ public class FuaController {
 	)
 	@ResponseBody
 	public ResponseEntity<String> renderFua(@PathVariable String visitUuid) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 
 		try {
 
@@ -766,7 +677,7 @@ public class FuaController {
 
 			// 1️⃣ Buscar FUA en BD
 			Fua fua = fuaService.getFuaByVisitUuid(visitUuid);
-			log.info("FUA encontrado con uuid: " + fua.getUuid());
+
 			
 			if (fua == null) {
 				return ResponseEntity
@@ -790,12 +701,10 @@ public class FuaController {
 			log.info("Llamando a microservicio: " + remoteUrl);
 
 			// 3️⃣ Headers
-			HttpHeaders headers = new HttpHeaders();
-			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
+			HttpHeaders headers = FuaGeneratorHeaders.create();
 
 			HttpEntity<String> entity = new HttpEntity<>(headers);
 
-			RestTemplate restTemplate = new RestTemplate();
 
 			// 4️⃣ Llamada GET
 			ResponseEntity<String> response = restTemplate.exchange(
@@ -819,12 +728,12 @@ public class FuaController {
 
 		} catch (Exception e) {
 
-			log.error("Error renderizando FUA", e);
+			log.error("FUA request failed");
 
 			return ResponseEntity
 					.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body("<h2>Error interno renderizando FUA</h2><pre>"
-							+ e.getMessage()
+							+ "No se pudo completar la solicitud FUA."
 							+ "</pre>");
 		}
 	}
@@ -836,6 +745,7 @@ public class FuaController {
 	)
 	@ResponseBody
 	public ResponseEntity<byte[]> generateFuaPDF(@PathVariable String visitUuid) {
+        FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 
 		try {
 
@@ -864,11 +774,9 @@ public class FuaController {
 
 			log.info("Llamando a microservicio para PDF: " + remoteUrl);
 
-			HttpHeaders headers = new HttpHeaders();
-			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
+			HttpHeaders headers = FuaGeneratorHeaders.create();
 
 			HttpEntity<String> entity = new HttpEntity<>(headers);
-			RestTemplate restTemplate = new RestTemplate();
 
 			ResponseEntity<byte[]> response = restTemplate.exchange(
 					remoteUrl,
@@ -893,21 +801,21 @@ public class FuaController {
 
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
 
-			log.error("Error HTTP generando PDF de FUA: " + ex.getStatusCode(), ex);
+			log.error("FUA request failed");
 
 			return ResponseEntity
 					.status(ex.getStatusCode())
 					.contentType(MediaType.TEXT_PLAIN)
-					.body(ex.getResponseBodyAsString().getBytes(StandardCharsets.UTF_8));
+					.body("No se pudo completar la solicitud FUA.".getBytes(StandardCharsets.UTF_8));
 
 		} catch (Exception e) {
 
-			log.error("Error generando PDF de FUA", e);
+			log.error("FUA request failed");
 
 			return ResponseEntity
 					.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.contentType(MediaType.TEXT_PLAIN)
-					.body(("Error interno generando PDF de FUA: " + e.getMessage())
+					.body(("No se pudo completar la solicitud FUA.")
 							.getBytes(StandardCharsets.UTF_8));
 		}
 	}
@@ -926,9 +834,6 @@ public class FuaController {
 			String baseUrl = getFuaGeneratorBaseUrl();
 			String remoteUrl = baseUrl + "/ws/FUAFromVisit";
 			String identifierFormat= getFuaIdentifierBase();
-			System.out.println("################################################################");
-			System.out.println("IdentifierFormat: " + identifierFormat);
-			System.out.println("################################################################");
 			
 			/* 2. Construimos el body ---------------------------------------- */
 			ObjectMapper mapper = new ObjectMapper();
@@ -947,14 +852,12 @@ public class FuaController {
 			
 
 			/* 3. Headers ------------------------------------------------------ */
-			HttpHeaders headers = new HttpHeaders();
+			HttpHeaders headers = FuaGeneratorHeaders.create();
 			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set(getFuaGeneratorHeaderName(), getFuaGeneratorHeaderValue());
 
 			HttpEntity<Map<String, Object>> entity =
 					new HttpEntity<>(requestBody, headers);
 
-			RestTemplate restTemplate = new RestTemplate();
 
 			/* 4. Llamada POST ------------------------------------------------- */
 			ResponseEntity<String> response = restTemplate.exchange(
@@ -977,37 +880,8 @@ public class FuaController {
 			return root.get("uuid").asText();
 
 		} catch (Exception e) {
-			e.printStackTrace(); // ← importante
 			throw new RuntimeException(
-				"Error generando FUA desde el generador externo: " + e.getMessage(), e);
+				"No se pudo completar la solicitud FUA.", e);
 		}
 	}
-
-	private String getFuaGeneratorHeaderName() {
-		String headerName = Context.getAdministrationService()
-				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_NAME_GP);
-		
-		if (org.apache.commons.lang3.StringUtils.isBlank(headerName)) {
-			headerName = FuaConfig.FUA_GENERATOR_HEADER_NAME_DEFAULT;
-			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_NAME_GP 
-					+ " not set, using default: " + headerName);
-		}
-		
-		return headerName;
-	}
-
-	private String getFuaGeneratorHeaderValue() {
-		String headerValue = Context.getAdministrationService()
-				.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP);
-		
-		if (org.apache.commons.lang3.StringUtils.isBlank(headerValue)) {
-			headerValue = FuaConfig.FUA_GENERATOR_HEADER_VALUE_DEFAULT;
-			log.warn("Global property " + FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP 
-					+ " not set, using default: " + headerValue);
-		}
-		
-		return headerValue;
-	}
-
 }
-
