@@ -3,8 +3,10 @@ package org.openmrs.module.fua.web.controller;
 import org.apache.commons.lang3.StringUtils;
 import org.openmrs.module.fua.Fua;
 import org.openmrs.module.fua.FuaObservacion;
+import org.openmrs.module.fua.FuaConfig;
 import org.openmrs.module.fua.api.FuaObservacionService;
 import org.openmrs.module.fua.api.FuaService;
+import org.openmrs.module.fua.web.utils.FuaAccess;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -82,6 +84,8 @@ public class FuaObservacionController {
 	@ResponseBody
 	public ResponseEntity<?> editarObservacion(@PathVariable("fuaUuid") String fuaUuid,
 			@PathVariable("observacionUuid") String observacionUuid, @RequestBody Map<String, Object> body) {
+		FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
+		FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		Object texto = body != null ? body.get("observacion") : null;
 		Object nombreUsuario = body != null ? body.get("usuario") : null;
 		if (!(texto instanceof String) || StringUtils.isBlank((String) texto) || ((String) texto).length() > 500) {
@@ -113,6 +117,8 @@ public class FuaObservacionController {
 	@ResponseBody
 	public ResponseEntity<?> eliminarObservacion(@PathVariable("fuaUuid") String fuaUuid,
 			@PathVariable("observacionUuid") String observacionUuid) {
+		FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
+		FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		FuaObservacion observacion = fuaObservacionService.getFuaObservacion(observacionUuid);
 		if (observacion == null || !fuaUuid.equals(observacion.getFuaUuid())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
