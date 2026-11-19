@@ -314,14 +314,13 @@ public class FuaController {
 				fua.setVisitUuid(visitUuid);
 				fua.setPayload(payload);
 				fua.setFuaEstado(estadoPendiente);
-				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
+				//fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
 			}
 			else{
 				fuaVersionService.saveFuaVersion(fua, "GenerateFromVisit");
 				fua.setPayload(payload);
-				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
+				//fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
 			}
-
 
 			fuaService.saveFua(fua);
 
