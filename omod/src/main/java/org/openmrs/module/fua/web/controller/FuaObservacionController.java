@@ -79,10 +79,10 @@ public class FuaObservacionController {
 		return ResponseEntity.ok(observaciones);
 	}
 
-	@RequestMapping(value = "/editar/{fuaUuid}/{observacionUuid}", method = RequestMethod.PUT,
+	@RequestMapping(value = "/editar/{observacionUuid}", method = RequestMethod.PUT,
 			consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<?> editarObservacion(@PathVariable("fuaUuid") String fuaUuid,
+	public ResponseEntity<?> editarObservacion(
 			@PathVariable("observacionUuid") String observacionUuid, @RequestBody Map<String, Object> body) {
 		FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
 		FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
@@ -96,9 +96,10 @@ public class FuaObservacionController {
 			return ResponseEntity.badRequest().body("'usuario' debe tener entre 1 y 50 caracteres.");
 		}
 		FuaObservacion observacion = fuaObservacionService.getFuaObservacion(observacionUuid);
-		if (observacion == null || !fuaUuid.equals(observacion.getFuaUuid())) {
+		if (observacion == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
 		}
+		String fuaUuid = observacion.getFuaUuid();
 		Fua fua = fuaService.getFuaByUuid(fuaUuid);
 		if (fua == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
@@ -113,16 +114,17 @@ public class FuaObservacionController {
 		return ResponseEntity.ok(fuaObservacionService.saveFuaObservacion(observacion));
 	}
 
-	@RequestMapping(value = "/eliminar/{fuaUuid}/{observacionUuid}", method = RequestMethod.PUT)
+	@RequestMapping(value = "/eliminar/{observacionUuid}", method = RequestMethod.PUT)
 	@ResponseBody
-	public ResponseEntity<?> eliminarObservacion(@PathVariable("fuaUuid") String fuaUuid,
+	public ResponseEntity<?> eliminarObservacion(
 			@PathVariable("observacionUuid") String observacionUuid) {
 		FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
 		FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
 		FuaObservacion observacion = fuaObservacionService.getFuaObservacion(observacionUuid);
-		if (observacion == null || !fuaUuid.equals(observacion.getFuaUuid())) {
+		if (observacion == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
 		}
+		String fuaUuid = observacion.getFuaUuid();
 		Fua fua = fuaService.getFuaByUuid(fuaUuid);
 		if (fua == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);

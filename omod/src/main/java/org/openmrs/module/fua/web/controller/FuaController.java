@@ -322,7 +322,6 @@ public class FuaController {
 				fua.setFuaGeneratorUuid(generarFuadeFuaGenerator(fua));
 			}
 
-
 			fuaService.saveFua(fua);
 
 			log.info("FUA generado exitosamente desde visita UUID: " + visitUuid);
