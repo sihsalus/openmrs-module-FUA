@@ -37,6 +37,7 @@ public class FuaGeneratorRequestTest {
     private String header = "X-Synthetic-Fua";
     private String token = "synthetic-token-one";
     private boolean failTransport;
+    private HttpClientErrorException upstreamFailure;
 
     @Before
     public void setUp() {
@@ -130,6 +131,60 @@ public class FuaGeneratorRequestTest {
         }
     }
 
+    @Test
+    public void formatValidationPreserves422AndFieldPathWithoutEchoingUpstreamMessages() throws Exception {
+        String body = "{\"error\":\"INVALID_FUA_FORMAT\",\"message\":\"synthetic-sensitive-upstream\","
+                + "\"details\":[{\"path\":[\"pages\",0,\"versionTag\"],\"message\":\"synthetic-sensitive-upstream\"}]}";
+        upstreamFailure = new HttpClientErrorException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid template",
+                body.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+        FuaRedirectionController formats = new FuaRedirectionController();
+        formats.restTemplate = recordingTransport();
+        List<ResponseEntity<String>> responses = new ArrayList<>();
+        responses.add(formats.redirectFuaFormatRenderRequest("synthetic-format"));
+        responses.add(formats.redirectFuaRequest("Synthetic", "Synthetic",
+                new MockMultipartFile("formatPayload", new byte[] { 1 })));
+        for (ResponseEntity<String> response : responses) {
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+            assertEquals(org.springframework.http.MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
+            assertTrue(response.getBody().contains("versionTag"));
+            assertTrue(response.getBody().contains("pages"));
+            assertFalse(response.getBody().contains("synthetic-sensitive-upstream"));
+            assertFalse(response.getBody().contains(token));
+        }
+    }
+
+    @Test
+    public void unrecognized422BodyRemainsGeneric() {
+        upstreamFailure = new HttpClientErrorException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid template",
+                "synthetic-sensitive-upstream".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                java.nio.charset.StandardCharsets.UTF_8);
+        FuaRedirectionController formats = new FuaRedirectionController();
+        formats.restTemplate = recordingTransport();
+        ResponseEntity<String> response = formats.redirectFuaFormatRenderRequest("synthetic-format");
+        assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
+        assertFalse(response.getBody().contains("synthetic-sensitive-upstream"));
+    }
+
+    @Test
+    public void validationCannotEchoUnknownPathSegmentsOrOversizedBodies() {
+        String[] bodies = {
+                "{\"error\":\"INVALID_FUA_FORMAT\",\"details\":[{\"path\":[\"synthetic-sensitive-upstream\"]}]}",
+                "{\"error\":\"INVALID_FUA_FORMAT\",\"details\":[{\"path\":[\"pages\",-1]}]}",
+                "{\"error\":\"INVALID_FUA_FORMAT\",\"details\":[{\"path\":[\"pages\",2147483648]}]}",
+                "{\"error\":\"INVALID_FUA_FORMAT\",\"details\":[{\"path\":[\"versionTag\"]}],\"extra\":\""
+                        + new String(new char[32768]).replace('\0', 'x') + "\"}"
+        };
+        for (String body : bodies) {
+            upstreamFailure = new HttpClientErrorException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid template",
+                    body.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+            FuaRedirectionController formats = new FuaRedirectionController();
+            formats.restTemplate = recordingTransport();
+            ResponseEntity<String> response = formats.redirectFuaFormatRenderRequest("synthetic-format");
+            assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
+            assertFalse(response.getBody().contains("synthetic-sensitive-upstream"));
+        }
+    }
+
     private RestTemplate recordingTransport() {
         return new RestTemplate() {
             @Override
@@ -146,6 +201,7 @@ public class FuaGeneratorRequestTest {
             private <T> ResponseEntity<T> record(String url, HttpEntity<?> request, Class<T> type) {
                 requests.add(request);
                 urls.add(url);
+                if (upstreamFailure != null) throw upstreamFailure;
                 if (failTransport) {
                     throw new HttpClientErrorException(HttpStatus.BAD_REQUEST, "synthetic-sensitive-upstream",
                             ("synthetic-sensitive-upstream " + token).getBytes(java.nio.charset.StandardCharsets.UTF_8),
