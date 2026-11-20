@@ -122,4 +122,19 @@ Rollback preserves existing FUA records, versions and global properties. Restori
 the previous module also restores its previous access/configuration behavior; it
 does not undo committed data changes or rotate credentials.
 
+FUA format validation responses
+-------------------------------
+
+The format proxy preserves recognized generator `INVALID_FUA_FORMAT` responses
+as HTTP 422 JSON. It returns bounded, allowlisted field locations and fixed
+messages, including a string-type hint for `versionTag`; it never forwards raw
+upstream messages, field values, stack traces or credentials. Malformed and
+unrecognized failures retain the existing generic HTTP 502 response. Successful
+rendering remains HTML and existing authorization checks are unchanged.
+
+This requires the generator's validation contract and the gateway's FUA-specific
+error handling to reach clients end to end. Release module 1.0.93 only after review, then update the distribution pin separately; this source change
+does not publish an artifact or alter deployed templates. Tests use synthetic
+HTTP responses and do not establish deployed clinical acceptance.
+
 Made with love

@@ -8,6 +8,7 @@ import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.fua.web.utils.FuaAccess;
 import org.openmrs.module.fua.web.utils.FuaGeneratorHeaders;
+import org.openmrs.module.fua.web.utils.FuaGeneratorValidationResponse;
 import org.openmrs.module.fua.FuaConfig;
 import org.openmrs.module.fua.web.utils.MultipartInputStreamFileResource;
 import org.springframework.http.*;
@@ -71,6 +72,8 @@ public class FuaRedirectionController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(response.getBody());
         } catch (Exception failure) {
+            ResponseEntity<String> validation = FuaGeneratorValidationResponse.from(failure);
+            if (validation != null) return validation;
             log.error("FUA generator request failed");
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -118,6 +121,8 @@ public class FuaRedirectionController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(responseBody);
         } catch (Exception failure) {
+            ResponseEntity<String> validation = FuaGeneratorValidationResponse.from(failure);
+            if (validation != null) return validation;
             log.error("FUA generator request failed");
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -125,7 +130,7 @@ public class FuaRedirectionController {
         }
     }
 
-    @RequestMapping(value = "/FUAFormat/{id}/render", method = RequestMethod.POST, produces = MediaType.TEXT_HTML_VALUE)
+    @RequestMapping(value = "/FUAFormat/{id}/render", method = RequestMethod.POST, produces = { MediaType.TEXT_HTML_VALUE, MediaType.APPLICATION_JSON_VALUE })
     @ResponseBody
     public ResponseEntity<String> redirectFuaFormatRenderRequest(@PathVariable("id") String id) {
         FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
@@ -163,6 +168,8 @@ public class FuaRedirectionController {
                     .contentType(MediaType.TEXT_HTML)
                     .body(response.getBody());
         } catch (Exception ex) {
+            ResponseEntity<String> validation = FuaGeneratorValidationResponse.from(ex);
+            if (validation != null) return validation;
             log.error("FUA generator request failed");
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.TEXT_HTML)
