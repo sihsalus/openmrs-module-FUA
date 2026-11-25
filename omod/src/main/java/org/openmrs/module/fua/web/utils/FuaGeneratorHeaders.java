@@ -7,14 +7,14 @@ import org.springframework.http.HttpHeaders;
 
 /** Build generator authentication consistently, without defaults or secret logging. */
 public final class FuaGeneratorHeaders {
-
+	
 	private FuaGeneratorHeaders() {
 	}
-
+	
 	public static HttpHeaders create() {
 		return create(Context.getAdministrationService());
 	}
-
+	
 	static HttpHeaders create(AdministrationService administration) {
         String name = administration.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_NAME_GP);
         String value = administration.getGlobalProperty(FuaConfig.FUA_GENERATOR_HEADER_VALUE_GP);
