@@ -76,6 +76,8 @@ import org.apache.commons.lang3.StringUtils;
 @RequestMapping(value = "/module/fua")
 public class FuaController {
 
+    private static final String PDF_SIGNATURE = "%PDF-";
+
     protected RestTemplate restTemplate = new RestTemplate();
 	
 	protected final Log log = LogFactory.getLog(getClass());
@@ -791,12 +793,20 @@ public class FuaController {
 						.body("Error generando PDF de FUA".getBytes(StandardCharsets.UTF_8));
 			}
 
+			byte[] pdf = response.getBody();
+			if (pdf == null || pdf.length < PDF_SIGNATURE.length()
+					|| !PDF_SIGNATURE.equals(new String(pdf, 0, PDF_SIGNATURE.length(), StandardCharsets.US_ASCII))) {
+				return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("El generador no devolvió un PDF válido.".getBytes(StandardCharsets.UTF_8));
+			}
+
 			HttpHeaders responseHeaders = new HttpHeaders();
 			responseHeaders.setContentType(MediaType.APPLICATION_PDF);
-			responseHeaders.setContentLength(response.getBody() != null ? response.getBody().length : 0);
+			responseHeaders.setContentLength(pdf.length);
 			responseHeaders.set("Content-Disposition", "attachment; filename=\"FUA-" + visitUuid + ".pdf\"");
 
-			return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
+			return new ResponseEntity<>(pdf, responseHeaders, HttpStatus.OK);
 
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
 
