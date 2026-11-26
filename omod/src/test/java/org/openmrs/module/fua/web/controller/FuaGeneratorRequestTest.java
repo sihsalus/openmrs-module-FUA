@@ -3,6 +3,7 @@ package org.openmrs.module.fua.web.controller;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,8 +22,10 @@ import org.openmrs.module.fua.api.FuaService;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -37,9 +40,12 @@ public class FuaGeneratorRequestTest {
     private String header = "X-Synthetic-Fua";
     private String token = "synthetic-token-one";
     private boolean failTransport;
+    private byte[] generatorPdf;
+    private MediaType generatorPdfContentType = MediaType.APPLICATION_PDF;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
+        generatorPdf = FileCopyUtils.copyToByteArray(getClass().getResourceAsStream("/fua-synthetic.pdf"));
         try {
             previousAdministration = ServiceContext.getInstance().getAdministrationService();
         } catch (APIException notConfigured) {
@@ -81,12 +87,7 @@ public class FuaGeneratorRequestTest {
         Fua fua = new Fua();
         fua.setFuaGeneratorUuid("synthetic-generator-id");
         fua.setPayload("{}");
-        FuaController controller = new FuaController();
-        Field service = FuaController.class.getDeclaredField("fuaService");
-        service.setAccessible(true);
-        service.set(controller, Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] { FuaService.class },
-                (proxy, method, args) -> fua));
-        controller.restTemplate = recordingTransport();
+        FuaController controller = controllerFor(fua);
         FuaRedirectionController formats = new FuaRedirectionController();
         formats.restTemplate = recordingTransport();
 
@@ -130,6 +131,59 @@ public class FuaGeneratorRequestTest {
         }
     }
 
+    @Test
+    public void pdfDownloadPreservesGeneratorBytesAndAttachmentHeaders() throws Exception {
+        generatorPdfContentType = MediaType.APPLICATION_OCTET_STREAM;
+        Fua fua = new Fua();
+        fua.setFuaGeneratorUuid("synthetic-generator-id");
+        ResponseEntity<byte[]> result = controllerFor(fua).generateFuaPDF("synthetic-visit");
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertArrayEquals(generatorPdf, result.getBody());
+        assertEquals(MediaType.APPLICATION_PDF, result.getHeaders().getContentType());
+        assertEquals(generatorPdf.length, result.getHeaders().getContentLength());
+        assertEquals("attachment; filename=\"FUA-synthetic-visit.pdf\"", result.getHeaders().getFirst("Content-Disposition"));
+    }
+
+    @Test
+    public void pdfDownloadRejectsMissingEmptyAndHtmlGeneratorBodies() throws Exception {
+        Fua fua = new Fua();
+        fua.setFuaGeneratorUuid("synthetic-generator-id");
+        FuaController controller = controllerFor(fua);
+        byte[] html = ("<html>synthetic-sensitive-data " + token + "</html>").getBytes(StandardCharsets.UTF_8);
+        for (byte[] invalid : new byte[][] { null, new byte[0], html }) {
+            generatorPdf = invalid;
+            ResponseEntity<byte[]> result = controller.generateFuaPDF("synthetic-visit");
+            assertEquals(HttpStatus.BAD_GATEWAY, result.getStatusCode());
+            assertEquals(MediaType.TEXT_PLAIN, result.getHeaders().getContentType());
+            assertNull(result.getHeaders().getFirst("Content-Disposition"));
+            String message = new String(result.getBody(), StandardCharsets.UTF_8);
+            assertFalse(message.contains("synthetic-sensitive-data"));
+            assertFalse(message.contains(token));
+        }
+    }
+
+    @Test
+    public void pdfDownloadPreservesMissingFuaAndGeneratorErrorStatuses() throws Exception {
+        assertEquals(HttpStatus.NOT_FOUND, controllerFor(null).generateFuaPDF("synthetic-visit").getStatusCode());
+        Fua fua = new Fua();
+        FuaController controller = controllerFor(fua);
+        assertEquals(HttpStatus.BAD_REQUEST, controller.generateFuaPDF("synthetic-visit").getStatusCode());
+        fua.setFuaGeneratorUuid("synthetic-generator-id");
+        failTransport = true;
+        assertEquals(HttpStatus.BAD_REQUEST, controller.generateFuaPDF("synthetic-visit").getStatusCode());
+    }
+
+    private FuaController controllerFor(Fua fua) throws Exception {
+        FuaController controller = new FuaController();
+        Field service = FuaController.class.getDeclaredField("fuaService");
+        service.setAccessible(true);
+        service.set(controller, Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] { FuaService.class },
+                (proxy, method, args) -> fua));
+        controller.restTemplate = recordingTransport();
+        return controller;
+    }
+
     private RestTemplate recordingTransport() {
         return new RestTemplate() {
             @Override
@@ -151,8 +205,10 @@ public class FuaGeneratorRequestTest {
                             ("synthetic-sensitive-upstream " + token).getBytes(java.nio.charset.StandardCharsets.UTF_8),
                             java.nio.charset.StandardCharsets.UTF_8);
                 }
-                Object body = type == byte[].class ? new byte[] { 1, 2 } : "{\"uuid\":\"synthetic-result\",\"results\":[]}";
-                return new ResponseEntity<>(type.cast(body), HttpStatus.OK);
+                if (type == byte[].class) {
+                    return ResponseEntity.ok().contentType(generatorPdfContentType).body(type.cast(generatorPdf));
+                }
+                return new ResponseEntity<>(type.cast("{\"uuid\":\"synthetic-result\",\"results\":[]}"), HttpStatus.OK);
             }
         };
     }
