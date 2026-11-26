@@ -119,7 +119,9 @@ public class FuaObservacionControllerAccessTest {
     @Test
     public void writerCanLogicallyDeleteCurrentObservation() {
         writer();
-        assertEquals(204, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
+        ResponseEntity<?> response = controller.completarObservacion(OBS_UUID);
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals("Observación eliminada exitosamente.", response.getBody());
         assertFalse(observation.getActivo());
         assertNotNull(observation.getFechaActualizacion());
         assertEquals("original", observation.getObservacion());
@@ -130,12 +132,13 @@ public class FuaObservacionControllerAccessTest {
     }
 
     @Test
-    public void writerCannotModifyHistoricalObservations() {
+    public void writerCannotEditButCanCompleteHistoricalObservations() {
         writer();
         observation.setVersion(1);
         assertEquals(409, controller.editarObservacion(OBS_UUID, body()).getStatusCodeValue());
-        assertEquals(409, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
-        assertUnchanged();
+        assertEquals(200, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
+        assertFalse(observation.getActivo());
+        assertEquals(1, dao.writes);
     }
 
     @Test
@@ -255,6 +258,12 @@ public class FuaObservacionControllerAccessTest {
         @Override
         public List<FuaObservacion> getFuaObservaciones(String uuid, Integer version) {
             return getFuaObservaciones(uuid);
+        }
+
+        @Override
+        public List<FuaObservacion> getTodasFuaObservaciones(String uuid, Integer version) {
+            reads++;
+            return Collections.<FuaObservacion>singletonList(observation);
         }
     }
 
