@@ -119,7 +119,7 @@ public class FuaObservacionControllerAccessTest {
     @Test
     public void writerCanLogicallyDeleteCurrentObservation() {
         writer();
-        assertEquals(204, controller.eliminarObservacion(OBS_UUID).getStatusCodeValue());
+        assertEquals(204, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
         assertFalse(observation.getActivo());
         assertNotNull(observation.getFechaActualizacion());
         assertEquals("original", observation.getObservacion());
@@ -134,7 +134,7 @@ public class FuaObservacionControllerAccessTest {
         writer();
         observation.setVersion(1);
         assertEquals(409, controller.editarObservacion(OBS_UUID, body()).getStatusCodeValue());
-        assertEquals(409, controller.eliminarObservacion(OBS_UUID).getStatusCodeValue());
+        assertEquals(409, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
         assertUnchanged();
     }
 
@@ -142,12 +142,12 @@ public class FuaObservacionControllerAccessTest {
     public void writerCannotModifyMissingOrInactiveObservation() {
         writer();
         assertEquals(404, controller.editarObservacion("missing", body()).getStatusCodeValue());
-        assertEquals(404, controller.eliminarObservacion("missing").getStatusCodeValue());
+        assertEquals(404, controller.completarObservacion("missing").getStatusCodeValue());
         assertEquals(0, fuaReads);
         observation.setActivo(false);
         observation.mutations = 0;
         assertEquals(404, controller.editarObservacion(OBS_UUID, body()).getStatusCodeValue());
-        assertEquals(404, controller.eliminarObservacion(OBS_UUID).getStatusCodeValue());
+        assertEquals(404, controller.completarObservacion(OBS_UUID).getStatusCodeValue());
         assertEquals(0, observation.mutations);
         assertEquals(0, dao.writes);
     }
@@ -177,7 +177,7 @@ public class FuaObservacionControllerAccessTest {
         RuntimeException edit = assertThrows(expected,
                 () -> controller.editarObservacion(OBS_UUID, body()));
         RuntimeException delete = assertThrows(expected,
-                () -> controller.eliminarObservacion(OBS_UUID));
+                () -> controller.completarObservacion(OBS_UUID));
         for (RuntimeException exception : Arrays.asList(edit, delete)) {
             MockHttpServletResponse response = new MockHttpServletResponse();
             new ResponseStatusExceptionResolver().resolveException(new MockHttpServletRequest(), response,

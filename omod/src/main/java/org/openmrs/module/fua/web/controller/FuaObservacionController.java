@@ -62,6 +62,7 @@ public class FuaObservacionController {
 				.body(fuaObservacionService.saveFuaObservacion(observacion));
 	}
 
+	/*//Listar solamente las obseervaciones activas
 	@RequestMapping(value = "/{fuaUuid}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
 	public ResponseEntity<?> listarObservaciones(@PathVariable("fuaUuid") String fuaUuid,
@@ -77,6 +78,21 @@ public class FuaObservacionController {
 				? fuaObservacionService.getFuaObservaciones(fuaUuid)
 				: fuaObservacionService.getFuaObservaciones(fuaUuid, version);
 		return ResponseEntity.ok(observaciones);
+	}*/
+
+	@RequestMapping(value = "/{fuaUuid}", method = RequestMethod.GET,
+			produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public ResponseEntity<?> listarObservaciones(@PathVariable("fuaUuid") String fuaUuid,
+			@RequestParam(value = "version", required = false) Integer version) {
+		Fua fua = fuaService.getFuaByUuid(fuaUuid);
+		if (fua == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
+		}
+		if (version != null && version < 1) {
+			return ResponseEntity.badRequest().body("La versión debe ser un entero positivo.");
+		}
+		return ResponseEntity.ok(fuaObservacionService.getTodasFuaObservaciones(fuaUuid, version));
 	}
 
 	@RequestMapping(value = "/editar/{observacionUuid}", method = RequestMethod.PUT,
@@ -114,9 +130,9 @@ public class FuaObservacionController {
 		return ResponseEntity.ok(fuaObservacionService.saveFuaObservacion(observacion));
 	}
 
-	@RequestMapping(value = "/eliminar/{observacionUuid}", method = RequestMethod.PUT)
+	@RequestMapping(value = "/completar/{observacionUuid}", method = RequestMethod.PUT)
 	@ResponseBody
-	public ResponseEntity<?> eliminarObservacion(
+	public ResponseEntity<?> completarObservacion(
 			@PathVariable("observacionUuid") String observacionUuid) {
 		FuaAccess.require(FuaConfig.UPDATE_FUA_PRIVILEGE);
 		FuaAccess.require(FuaConfig.READ_FUA_PRIVILEGE);
@@ -124,18 +140,10 @@ public class FuaObservacionController {
 		if (observacion == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Observación no encontrada.");
 		}
-		String fuaUuid = observacion.getFuaUuid();
-		Fua fua = fuaService.getFuaByUuid(fuaUuid);
-		if (fua == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FUA no encontrado con UUID: " + fuaUuid);
-		}
-		if (!fua.getVersion().equals(observacion.getVersion())) {
-			return ResponseEntity.status(HttpStatus.CONFLICT)
-					.body("Solo se pueden eliminar observaciones de la versión actual del FUA.");
-		}
+		
 		observacion.setActivo(false);
 		observacion.setFechaActualizacion(new java.util.Date());
 		fuaObservacionService.saveFuaObservacion(observacion);
-		return ResponseEntity.noContent().build();
+		return ResponseEntity.ok("Observación eliminada exitosamente.");
 	}
 }

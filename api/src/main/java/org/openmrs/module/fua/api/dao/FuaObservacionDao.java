@@ -1,5 +1,6 @@
 package org.openmrs.module.fua.api.dao;
 
+import org.hibernate.Query;
 import org.openmrs.api.db.hibernate.DbSession;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.module.fua.FuaObservacion;
@@ -33,7 +34,7 @@ public class FuaObservacionDao {
 	public List<FuaObservacion> getFuaObservaciones(String fuaUuid, Integer version) {
 		return getSession().createQuery(
 				"FROM FuaObservacion fo WHERE fo.fuaUuid = :fuaUuid AND fo.version = :version "
-						+ "AND fo.activo = true ORDER BY fo.fechaCreacion DESC, fo.id DESC")
+						+ "AND fo.activo = true ORDER BY fo.id ASC")
 				.setParameter("fuaUuid", fuaUuid)
 				.setParameter("version", version)
 				.list();
@@ -42,8 +43,21 @@ public class FuaObservacionDao {
 	@SuppressWarnings("unchecked")
 	public List<FuaObservacion> getFuaObservaciones(String fuaUuid) {
 		return getSession().createQuery(
-				"FROM FuaObservacion fo WHERE fo.fuaUuid = :fuaUuid AND fo.activo = true "
-						+ "ORDER BY fo.fechaCreacion DESC, fo.id DESC")
+				"FROM FuaObservacion fo WHERE fo.fuaUuid = :fuaUuid AND fo.activo = true ORDER BY fo.id ASC")
 				.setParameter("fuaUuid", fuaUuid).list();
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<FuaObservacion> getTodasFuaObservaciones(String fuaUuid, Integer version) {
+		String query = "FROM FuaObservacion fo WHERE fo.fuaUuid = :fuaUuid ";
+		if (version != null) {
+			query += "AND fo.version = :version ";
+		}
+		query += "ORDER BY CASE WHEN fo.activo = true THEN 0 ELSE 1 END ASC, fo.id ASC";
+		Query hibernateQuery = getSession().createQuery(query).setParameter("fuaUuid", fuaUuid);
+		if (version != null) {
+			hibernateQuery.setParameter("version", version);
+		}
+		return hibernateQuery.list();
 	}
 }
